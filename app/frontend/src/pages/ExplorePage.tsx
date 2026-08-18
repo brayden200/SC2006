@@ -36,13 +36,14 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
   const [details, setDetails] = useState<Station | null>(null);
   const [predicting, setPredicting] = useState<Station | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string>();
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const runSearch = async (initial = false) => {
     setLoading(true); setError(''); setCompareIds([]);
     try {
       const search = await api.searchStations({
-        query: locationQuery, latitude: coords?.latitude, longitude: coords?.longitude,
+        query: locationQuery, latitude: searchCoords?.latitude, longitude: searchCoords?.longitude,
         radiusKm, connector, availableOnly, includeUnknown, minPowerKw: minPowerKw || undefined,
         maxPrice: maxPrice || undefined, operator: operator || undefined,
       });
@@ -70,7 +71,9 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
     if (!navigator.geolocation) { setError('Location is unavailable. Enter an address or postal code instead.'); return; }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        const nextLocation = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        setCurrentLocation(nextLocation);
+        setSearchCoords(nextLocation);
         setLocationQuery('My current location');
         notify('Current location added — press Search to refresh nearby stations');
       },
@@ -101,7 +104,7 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
 
       <section className="search-card">
         <div className="search-grid">
-          <label className="location-field"><span>Where do you need to charge?</span><div><Search size={19} /><input value={locationQuery} onChange={(event) => { setLocationQuery(event.target.value); setCoords(null); }} placeholder="Address or postal code" /><button onClick={useMyLocation} aria-label="Use current location"><LocateFixed size={18} /></button></div></label>
+          <label className="location-field"><span>Where do you need to charge?</span><div><Search size={19} /><input value={locationQuery} onChange={(event) => { setLocationQuery(event.target.value); setSearchCoords(null); }} placeholder="Address or postal code" /><button onClick={useMyLocation} aria-label="Use current location"><LocateFixed size={18} /></button></div></label>
           <label><span>Connector</span><div className="select-wrap"><select value={connector} onChange={(event) => setConnector(event.target.value as ConnectorType)}><option>CCS2</option><option>Type 2</option><option>CHAdeMO</option></select><ChevronDown size={16} /></div></label>
           <label><span>Ranking priority</span><div className="select-wrap"><select value={priority} onChange={(event) => setPriority(event.target.value as keyof typeof weightSets)}>{Object.keys(weightSets).map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={16} /></div></label>
           <button className="button primary search-button" onClick={() => void runSearch()} disabled={loading}>{loading ? <LoaderCircle className="spin" /> : <Search size={18} />} Search</button>
@@ -115,7 +118,7 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
           <label>Search radius <b>{radiusKm} km</b><input type="range" min="2" max="25" value={radiusKm} onChange={(event) => setRadiusKm(Number(event.target.value))} /></label>
           <label>Energy to add <b>{energyKwh} kWh</b><input type="range" min="10" max="80" step="5" value={energyKwh} onChange={(event) => setEnergyKwh(Number(event.target.value))} /></label>
           <label>Maximum price<select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}><option value="">Any / unknown allowed</option><option value="0.50">Up to $0.50/kWh</option><option value="0.60">Up to $0.60/kWh</option><option value="0.70">Up to $0.70/kWh</option></select></label>
-          <label>Operator<select value={operator} onChange={(event) => setOperator(event.target.value)}><option value="">Any operator</option><option>SP Mobility</option><option>Charge+</option><option>Shell Recharge</option><option>Bluecharge</option></select></label>
+          <label>Operator<select value={operator} onChange={(event) => setOperator(event.target.value)}><option value="">Any operator</option>{(searchResult?.operators ?? []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <label className="checkbox-label"><input type="checkbox" checked={includeUnknown} onChange={(event) => setIncludeUnknown(event.target.checked)} /> Include unknown availability</label>
         </div>}
       </section>
@@ -129,7 +132,7 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
           <div className="station-list">
             {ranked.map((station, index) => <StationCard key={station.id} station={station} connector={connector} rank={index + 1} best={index === 0} compared={compareIds.includes(station.id)} onCompare={() => toggleCompare(station.id)} onDetails={() => setDetails(station)} onMonitor={() => void monitor(station)} onPredict={() => setPredicting(station)} onHover={() => setMapSelectedId(station.id)} />)}
           </div>
-          <aside className="map-column"><MapPanel stations={ranked} selectedId={mapSelectedId} onSelect={(station) => { setMapSelectedId(station.id); setDetails(station); }} location={searchResult!.location} /><div className="map-disclaimer"><CircleAlert size={15} /> Availability is a snapshot, not a reservation.</div></aside>
+          <aside className="map-column"><MapPanel stations={ranked} selectedId={mapSelectedId} onSelect={(station) => { setMapSelectedId(station.id); setDetails(station); }} location={searchResult!.location} currentLocation={currentLocation ?? undefined} /><div className="map-disclaimer"><CircleAlert size={15} /> Availability is a snapshot, not a reservation.</div></aside>
         </div>
       </> : <div className="empty-state"><Search size={34} /><h2>No compatible stations found</h2><p>Try one of these ways to broaden your search.</p><div>{(searchResult?.suggestions ?? []).map((item) => <button key={item} onClick={() => { if (item.includes('radius')) setRadiusKm(20); if (item.includes('unknown')) setIncludeUnknown(true); }}>{item}</button>)}</div></div>}
 

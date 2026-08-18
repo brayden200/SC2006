@@ -17,6 +17,7 @@ export interface StationSearchResult {
     oneMap: ReturnType<OneMapService['status']>;
     fallbackReason: string | null;
   };
+  operators: string[];
   suggestions: string[];
 }
 
@@ -110,8 +111,11 @@ export class StationsService {
         (station) => station.pricePerKwh !== null && station.pricePerKwh <= dto.maxPrice!,
       );
     }
+    const operators = [...new Set(stations.map((station) => station.operator).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b));
     if (dto.operator) {
-      stations = stations.filter((station) => station.operator === dto.operator);
+      const requestedOperator = this.operatorKey(dto.operator);
+      stations = stations.filter((station) => this.operatorKey(station.operator) === requestedOperator);
     }
 
     stations.sort((a, b) => a.distanceKm - b.distanceKm);
@@ -133,6 +137,7 @@ export class StationsService {
         oneMap: this.oneMap.status(),
         fallbackReason: this.fallbackReason,
       },
+      operators,
       suggestions: stations.length
         ? []
         : ['Increase the search radius', 'Try another connector', 'Allow stations with unknown status'],
@@ -178,5 +183,9 @@ export class StationsService {
     const value =
       Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
     return Number((earthRadiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))).toFixed(2));
+  }
+
+  private operatorKey(value: string) {
+    return value.toLowerCase().replace(/\b(private|pte|limited|ltd)\b\.?/g, '').replace(/[^a-z0-9+]/g, '');
   }
 }

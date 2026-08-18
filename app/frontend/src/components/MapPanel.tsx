@@ -16,6 +16,7 @@ interface MapPanelProps {
   selectedId?: string;
   onSelect: (station: Station) => void;
   location: MapLocation;
+  currentLocation?: Pick<MapLocation, 'latitude' | 'longitude'>;
 }
 
 function MapViewport({ stations, location }: { stations: Station[]; location: MapLocation }) {
@@ -52,7 +53,7 @@ function stationIcon(rank: number, available: boolean, selected: boolean) {
   });
 }
 
-export function MapPanel({ stations, selectedId, onSelect, location }: MapPanelProps) {
+export function MapPanel({ stations, selectedId, onSelect, location, currentLocation }: MapPanelProps) {
   const [map, setMap] = useState<LeafletMap | null>(null);
   const [zoom, setZoom] = useState(13);
 
@@ -71,8 +72,8 @@ export function MapPanel({ stations, selectedId, onSelect, location }: MapPanelP
 
   const zoomIn = () => map?.zoomIn();
   const zoomOut = () => map?.zoomOut();
-  const recenter = () => map?.flyTo(
-    [location.latitude, location.longitude],
+  const recenter = () => currentLocation && map?.flyTo(
+    [currentLocation.latitude, currentLocation.longitude],
     Math.max(map.getZoom(), 15),
     { duration: 0.65 },
   );
@@ -94,19 +95,21 @@ export function MapPanel({ stations, selectedId, onSelect, location }: MapPanelP
         />
         <MapViewport stations={stations} location={location} />
 
-        <CircleMarker
-          center={[location.latitude, location.longitude]}
-          radius={9}
-          pathOptions={{ color: '#ffffff', fillColor: '#3784cf', fillOpacity: 1, weight: 3 }}
-          interactive={false}
-          className="search-location-marker"
-        />
-        <CircleMarker
-          center={[location.latitude, location.longitude]}
-          radius={18}
-          pathOptions={{ color: '#3784cf', fillColor: '#3784cf', fillOpacity: 0.09, weight: 1 }}
-          interactive={false}
-        />
+        {currentLocation && <>
+          <CircleMarker
+            center={[currentLocation.latitude, currentLocation.longitude]}
+            radius={9}
+            pathOptions={{ color: '#ffffff', fillColor: '#3784cf', fillOpacity: 1, weight: 3 }}
+            interactive={false}
+            className="current-location-marker"
+          />
+          <CircleMarker
+            center={[currentLocation.latitude, currentLocation.longitude]}
+            radius={18}
+            pathOptions={{ color: '#3784cf', fillColor: '#3784cf', fillOpacity: 0.09, weight: 1 }}
+            interactive={false}
+          />
+        </>}
 
         {stations.map((station, index) => {
           const connector = station.connectors[0];
@@ -143,7 +146,7 @@ export function MapPanel({ stations, selectedId, onSelect, location }: MapPanelP
         <button type="button" onClick={zoomOut} disabled={!map || zoom <= map.getMinZoom()} aria-label="Zoom out" title="Zoom out">
           <Minus size={17} />
         </button>
-        <button type="button" onClick={recenter} disabled={!map} aria-label="Recenter on search location" title="Recenter on search location">
+        <button type="button" onClick={recenter} disabled={!map || !currentLocation} aria-label="Recenter on my location" title={currentLocation ? 'Recenter on my location' : 'Current location unavailable'}>
           <LocateFixed size={17} />
         </button>
       </div>
@@ -156,7 +159,7 @@ export function MapPanel({ stations, selectedId, onSelect, location }: MapPanelP
       <div className="map-legend">
         <span><i className="legend-available" /> Available</span>
         <span><i className="legend-busy" /> Busy</span>
-        <span><i className="legend-you" /> Search center</span>
+        {currentLocation && <span><i className="legend-you" /> Your location</span>}
       </div>
     </div>
   );

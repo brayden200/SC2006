@@ -47,6 +47,7 @@ export interface SearchResponse {
     ltaDataMall: IntegrationProviderStatus;
     oneMap: IntegrationProviderStatus;
   };
+  operators: string[];
   suggestions: string[];
 }
 
