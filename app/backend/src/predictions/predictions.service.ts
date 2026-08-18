@@ -19,7 +19,12 @@ export class PredictionsService {
     const station = this.stationsService.findById(stationId);
     const arrival = new Date(arrivalTime);
     if (Number.isNaN(arrival.getTime())) {
-      return { stationId, status: 'insufficient_data', message: 'Choose a valid arrival time.', sampleSize: 0 };
+      return {
+        stationId,
+        status: 'insufficient_data',
+        message: 'Choose a valid arrival time.',
+        sampleSize: 0,
+      };
     }
 
     const targetDay = arrival.getDay();

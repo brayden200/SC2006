@@ -39,15 +39,15 @@ The Vite development server proxies `/api` to port 3000. To point the frontend e
 
 ## Implemented use cases
 
-| Use case | Implementation |
-| --- | --- |
+| Use case                       | Implementation                                                                                                                                                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | UC-01 Find compatible stations | OneMap address/postal-code geocoding, LTA compatibility and availability data, radius, power, price and operator filters, map and list views, station details, no-result recovery suggestions, cached-data labeling. |
-| UC-02 Recommend best charger | Normalized weighted scoring, OneMap driving time/distance, four ranking presets, top choice plus alternatives, score breakdown, reasons, cost/time estimates, missing-price weight redistribution. |
-| UC-03 Compare options | Select 2–4 stations, compare live availability, compatibility, speed, charging duration, cost, travel, hours and operator, with best/weakest highlights and explicit unknown values. |
-| UC-04 Monitor charger | 90-minute watchlist, backend 30-second checks, status timestamps, event history, expiry/stop controls, and a deterministic demo-status change for presentations. |
-| UC-05 Recommend alternative | Re-ranks available compatible chargers from the latest location, displays added travel time, accepts a replacement and continues monitoring, plus a simplified driving-mode view. |
-| UC-07 Charging sessions | Records energy, cost, duration and official-status accuracy; lists history and calculates monthly spend, energy, rate and frequently used stations. |
-| UC-08 Availability prediction | Similar-weekday/time-window probability with sample size, confidence indicator, method explanation and insufficient-data handling. |
+| UC-02 Recommend best charger   | Normalized weighted scoring, OneMap driving time/distance, four ranking presets, top choice plus alternatives, score breakdown, reasons, cost/time estimates, missing-price weight redistribution.                   |
+| UC-03 Compare options          | Select 2–4 stations, compare live availability, compatibility, speed, charging duration, cost, travel, hours and operator, with best/weakest highlights and explicit unknown values.                                 |
+| UC-04 Monitor charger          | 90-minute watchlist, backend 30-second checks, status timestamps, event history, expiry/stop controls, and a deterministic demo-status change for presentations.                                                     |
+| UC-05 Recommend alternative    | Re-ranks available compatible chargers from the latest location, displays added travel time, accepts a replacement and continues monitoring, plus a simplified driving-mode view.                                    |
+| UC-07 Charging sessions        | Records energy, cost, duration and official-status accuracy; lists history and calculates monthly spend, energy, rate and frequently used stations.                                                                  |
+| UC-08 Availability prediction  | Similar-weekday/time-window probability with sample size, confidence indicator, method explanation and insufficient-data handling.                                                                                   |
 
 UC-06 is not present: there is no vehicle-profile or saved-preferences screen. Registered-user flows use the visible demo account, while connector and ranking priorities are chosen per search.
 

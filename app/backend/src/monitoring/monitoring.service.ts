@@ -39,7 +39,8 @@ export class MonitoringService {
     if (!connector) throw new BadRequestException('This station does not support the selected connector');
 
     const existing = this.monitors.find(
-      (item) => item.stationId === dto.stationId && item.connector === dto.connector && item.status === 'active',
+      (item) =>
+        item.stationId === dto.stationId && item.connector === dto.connector && item.status === 'active',
     );
     if (existing) return this.enrich(existing);
 
@@ -97,7 +98,9 @@ export class MonitoringService {
     });
     const ranked = result.ranked.filter((item) => {
       const connector = item.connectors.find((candidate) => candidate.type === monitor.connector);
-      return item.id !== monitor.stationId && (connector?.available ?? 0) > 0 && connector?.status === 'available';
+      return (
+        item.id !== monitor.stationId && (connector?.available ?? 0) > 0 && connector?.status === 'available'
+      );
     });
     const currentDistance = this.stationsService.distanceKm(query, current);
     const currentTravelMinutes = Math.max(2, Math.round((currentDistance / 25) * 60));
@@ -140,9 +143,10 @@ export class MonitoringService {
     const station = this.stationsService.findById(monitor.stationId);
     const connector = station.connectors.find((item) => item.type === monitor.connector)!;
     if (connector.available !== monitor.lastKnownAvailability) {
-      const message = connector.available === 0
-        ? `${station.name} is now fully occupied. Consider an alternative.`
-        : `${station.name} now has ${connector.available ?? 'unknown'} compatible charger${connector.available === 1 ? '' : 's'} available.`;
+      const message =
+        connector.available === 0
+          ? `${station.name} is now fully occupied. Consider an alternative.`
+          : `${station.name} now has ${connector.available ?? 'unknown'} compatible charger${connector.available === 1 ? '' : 's'} available.`;
       monitor.events.unshift(this.event('availability_changed', message));
       monitor.lastKnownAvailability = connector.available;
     }
@@ -168,6 +172,11 @@ export class MonitoringService {
   }
 
   private event(type: MonitorEvent['type'], message: string): MonitorEvent {
-    return { id: `event-${Date.now()}-${Math.random().toString(16).slice(2)}`, type, message, timestamp: new Date().toISOString() };
+    return {
+      id: `event-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type,
+      message,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

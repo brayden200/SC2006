@@ -4,7 +4,10 @@ import { OneMapService } from './onemap.service';
 
 @Controller('integrations')
 export class IntegrationsController {
-  constructor(private readonly lta: LtaDataMallService, private readonly oneMap: OneMapService) {}
+  constructor(
+    private readonly lta: LtaDataMallService,
+    private readonly oneMap: OneMapService,
+  ) {}
 
   @Get('status')
   status() {

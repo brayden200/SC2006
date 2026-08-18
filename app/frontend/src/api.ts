@@ -1,4 +1,12 @@
-import type { ConnectorType, IntegrationProviderStatus, Monitor, RankedStation, RecommendationResponse, SearchResponse, Station } from './types';
+import type {
+  ConnectorType,
+  IntegrationProviderStatus,
+  Monitor,
+  RankedStation,
+  RecommendationResponse,
+  SearchResponse,
+  Station,
+} from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? '/api';
 
@@ -8,7 +16,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => null) as { message?: string | string[] } | null;
+    const error = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
     const message = Array.isArray(error?.message) ? error.message.join(', ') : error?.message;
     throw new Error(message || `Request failed (${response.status})`);
   }
@@ -17,7 +25,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getIntegrationStatus() {
-    return request<{ ltaDataMall: IntegrationProviderStatus; oneMap: IntegrationProviderStatus }>('/integrations/status');
+    return request<{ ltaDataMall: IntegrationProviderStatus; oneMap: IntegrationProviderStatus }>(
+      '/integrations/status',
+    );
   },
   searchStations(params: Record<string, string | number | boolean | undefined>) {
     const query = new URLSearchParams();
@@ -28,16 +38,28 @@ export const api = {
     return request<Station>(`/stations/${id}`);
   },
   recommend(body: Record<string, unknown>) {
-    return request<RecommendationResponse>('/recommendations', { method: 'POST', body: JSON.stringify(body) });
+    return request<RecommendationResponse>('/recommendations', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   },
-  compare(body: { stationIds: string[]; connector: ConnectorType; energyKwh: number; latitude: number; longitude: number }) {
+  compare(body: {
+    stationIds: string[];
+    connector: ConnectorType;
+    energyKwh: number;
+    latitude: number;
+    longitude: number;
+  }) {
     return request<CompareResponse>('/compare', { method: 'POST', body: JSON.stringify(body) });
   },
   getMonitors() {
     return request<{ monitors: Monitor[] }>('/monitoring');
   },
   createMonitor(stationId: string, connector: ConnectorType) {
-    return request<Monitor>('/monitoring', { method: 'POST', body: JSON.stringify({ stationId, connector, durationMinutes: 90 }) });
+    return request<Monitor>('/monitoring', {
+      method: 'POST',
+      body: JSON.stringify({ stationId, connector, durationMinutes: 90 }),
+    });
   },
   checkMonitor(id: string) {
     return request<Monitor>(`/monitoring/${id}/check`, { method: 'POST' });
@@ -46,10 +68,15 @@ export const api = {
     return request<Monitor>(`/monitoring/${id}`, { method: 'DELETE' });
   },
   getAlternatives(id: string, latitude: number, longitude: number) {
-    return request<AlternativesResponse>(`/monitoring/${id}/alternatives?latitude=${latitude}&longitude=${longitude}&radiusKm=15`);
+    return request<AlternativesResponse>(
+      `/monitoring/${id}/alternatives?latitude=${latitude}&longitude=${longitude}&radiusKm=15`,
+    );
   },
   acceptAlternative(id: string, stationId: string) {
-    return request<Monitor>(`/monitoring/${id}/accept-alternative`, { method: 'POST', body: JSON.stringify({ stationId }) });
+    return request<Monitor>(`/monitoring/${id}/accept-alternative`, {
+      method: 'POST',
+      body: JSON.stringify({ stationId }),
+    });
   },
   getPrediction(stationId: string, arrivalTime: string) {
     return request<Prediction>(`/predictions/${stationId}?arrivalTime=${encodeURIComponent(arrivalTime)}`);
@@ -63,10 +90,18 @@ export const api = {
 };
 
 export interface CompareOption {
-  id: string; name: string; operator: string; connectorCompatible: boolean;
-  availability: number | null; availabilityStatus: string; powerKw: number | null;
-  estimatedChargeMinutes: number | null; pricePerKwh: number | null;
-  estimatedCost: number | null; distanceKm: number; travelMinutes: number;
+  id: string;
+  name: string;
+  operator: string;
+  connectorCompatible: boolean;
+  availability: number | null;
+  availabilityStatus: string;
+  powerKw: number | null;
+  estimatedChargeMinutes: number | null;
+  pricePerKwh: number | null;
+  estimatedCost: number | null;
+  distanceKm: number;
+  travelMinutes: number;
   lastUpdated: string;
   travelSource: 'OneMap' | 'Straight-line estimate';
 }
@@ -78,7 +113,7 @@ export interface CompareResponse {
 }
 export interface AlternativesResponse {
   currentStation: Station;
-  recommended: (RankedStationWithDetour) | null;
+  recommended: RankedStationWithDetour | null;
   alternatives: RankedStationWithDetour[];
   message: string;
 }
@@ -86,11 +121,23 @@ interface RankedStationWithDetour extends RankedStation {
   additionalTravelMinutes: number;
 }
 export interface Prediction {
-  stationId: string; stationName?: string; arrivalTime?: string;
-  status: string; probability?: number; sampleSize: number; confidence?: string;
-  methodology?: string; message: string;
+  stationId: string;
+  stationName?: string;
+  arrivalTime?: string;
+  status: string;
+  probability?: number;
+  sampleSize: number;
+  confidence?: string;
+  methodology?: string;
+  message: string;
 }
 export interface SessionsResponse {
   sessions: import('./types').ChargingSession[];
-  summary: { monthlyCost: number; monthlyEnergyKwh: number; monthlySessions: number; averageCostPerKwh: number; frequentlyUsedStation: { name: string; visits: number } | null };
+  summary: {
+    monthlyCost: number;
+    monthlyEnergyKwh: number;
+    monthlySessions: number;
+    averageCostPerKwh: number;
+    frequentlyUsedStation: { name: string; visits: number } | null;
+  };
 }

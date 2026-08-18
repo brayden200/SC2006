@@ -54,7 +54,14 @@ function stationIcon(rank: number, available: boolean, selected: boolean) {
   });
 }
 
-export function MapPanel({ stations, connector, selectedId, onSelect, location, currentLocation }: MapPanelProps) {
+export function MapPanel({
+  stations,
+  connector,
+  selectedId,
+  onSelect,
+  location,
+  currentLocation,
+}: MapPanelProps) {
   const [map, setMap] = useState<LeafletMap | null>(null);
   const [zoom, setZoom] = useState(13);
 
@@ -63,24 +70,34 @@ export function MapPanel({ stations, connector, selectedId, onSelect, location, 
     const syncZoom = () => setZoom(map.getZoom());
     syncZoom();
     map.on('zoomend', syncZoom);
-    return () => { map.off('zoomend', syncZoom); };
+    return () => {
+      map.off('zoomend', syncZoom);
+    };
   }, [map]);
 
-  const icons = useMemo(() => stations.map((station, index) => {
-    const available = (station.connectors.find((item) => item.type === connector)?.available ?? 0) > 0;
-    return stationIcon(index + 1, available, selectedId === station.id);
-  }), [connector, selectedId, stations]);
+  const icons = useMemo(
+    () =>
+      stations.map((station, index) => {
+        const available = (station.connectors.find((item) => item.type === connector)?.available ?? 0) > 0;
+        return stationIcon(index + 1, available, selectedId === station.id);
+      }),
+    [connector, selectedId, stations],
+  );
 
   const zoomIn = () => map?.zoomIn();
   const zoomOut = () => map?.zoomOut();
-  const recenter = () => currentLocation && map?.flyTo(
-    [currentLocation.latitude, currentLocation.longitude],
-    Math.max(map.getZoom(), 15),
-    { duration: 0.65 },
-  );
+  const recenter = () =>
+    currentLocation &&
+    map?.flyTo([currentLocation.latitude, currentLocation.longitude], Math.max(map.getZoom(), 15), {
+      duration: 0.65,
+    });
 
   return (
-    <div className="map-panel" role="region" aria-label={`Interactive charger map near ${location.label ?? 'your search location'}`}>
+    <div
+      className="map-panel"
+      role="region"
+      aria-label={`Interactive charger map near ${location.label ?? 'your search location'}`}
+    >
       <MapContainer
         center={[location.latitude, location.longitude]}
         zoom={13}
@@ -96,21 +113,23 @@ export function MapPanel({ stations, connector, selectedId, onSelect, location, 
         />
         <MapViewport stations={stations} location={location} />
 
-        {currentLocation && <>
-          <CircleMarker
-            center={[currentLocation.latitude, currentLocation.longitude]}
-            radius={9}
-            pathOptions={{ color: '#ffffff', fillColor: '#3784cf', fillOpacity: 1, weight: 3 }}
-            interactive={false}
-            className="current-location-marker"
-          />
-          <Circle
-            center={[currentLocation.latitude, currentLocation.longitude]}
-            radius={Math.max(10, currentLocation.accuracy)}
-            pathOptions={{ color: '#3784cf', fillColor: '#3784cf', fillOpacity: 0.09, weight: 1 }}
-            interactive={false}
-          />
-        </>}
+        {currentLocation && (
+          <>
+            <CircleMarker
+              center={[currentLocation.latitude, currentLocation.longitude]}
+              radius={9}
+              pathOptions={{ color: '#ffffff', fillColor: '#3784cf', fillOpacity: 1, weight: 3 }}
+              interactive={false}
+              className="current-location-marker"
+            />
+            <Circle
+              center={[currentLocation.latitude, currentLocation.longitude]}
+              radius={Math.max(10, currentLocation.accuracy)}
+              pathOptions={{ color: '#3784cf', fillColor: '#3784cf', fillOpacity: 0.09, weight: 1 }}
+              interactive={false}
+            />
+          </>
+        )}
 
         {stations.map((station, index) => {
           const stationConnector = station.connectors.find((item) => item.type === connector);
@@ -133,7 +152,10 @@ export function MapPanel({ stations, connector, selectedId, onSelect, location, 
                 className="station-map-tooltip"
               >
                 <b>{station.name}</b>
-                <span>{stationConnector?.available ?? 'Unknown'} available · {stationConnector?.powerKw || 'Unknown'} kW</span>
+                <span>
+                  {stationConnector?.available ?? 'Unknown'} available ·{' '}
+                  {stationConnector?.powerKw || 'Unknown'} kW
+                </span>
               </Tooltip>
             </Marker>
           );
@@ -141,13 +163,31 @@ export function MapPanel({ stations, connector, selectedId, onSelect, location, 
       </MapContainer>
 
       <div className="map-controls" aria-label="Map controls">
-        <button type="button" onClick={zoomIn} disabled={!map || zoom >= map.getMaxZoom()} aria-label="Zoom in" title="Zoom in">
+        <button
+          type="button"
+          onClick={zoomIn}
+          disabled={!map || zoom >= map.getMaxZoom()}
+          aria-label="Zoom in"
+          title="Zoom in"
+        >
           <Plus size={17} />
         </button>
-        <button type="button" onClick={zoomOut} disabled={!map || zoom <= map.getMinZoom()} aria-label="Zoom out" title="Zoom out">
+        <button
+          type="button"
+          onClick={zoomOut}
+          disabled={!map || zoom <= map.getMinZoom()}
+          aria-label="Zoom out"
+          title="Zoom out"
+        >
           <Minus size={17} />
         </button>
-        <button type="button" onClick={recenter} disabled={!map || !currentLocation} aria-label="Recenter on my location" title={currentLocation ? 'Recenter on my location' : 'Current location unavailable'}>
+        <button
+          type="button"
+          onClick={recenter}
+          disabled={!map || !currentLocation}
+          aria-label="Recenter on my location"
+          title={currentLocation ? 'Recenter on my location' : 'Current location unavailable'}
+        >
           <LocateFixed size={17} />
         </button>
       </div>
@@ -158,9 +198,17 @@ export function MapPanel({ stations, connector, selectedId, onSelect, location, 
         <b>{location.label ?? 'Selected location'}</b>
       </div>
       <div className="map-legend">
-        <span><i className="legend-available" /> Available</span>
-        <span><i className="legend-busy" /> Busy</span>
-        {currentLocation && <span><i className="legend-you" /> Your location</span>}
+        <span>
+          <i className="legend-available" /> Available
+        </span>
+        <span>
+          <i className="legend-busy" /> Busy
+        </span>
+        {currentLocation && (
+          <span>
+            <i className="legend-you" /> Your location
+          </span>
+        )}
       </div>
     </div>
   );

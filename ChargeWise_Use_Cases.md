@@ -10,26 +10,26 @@ The application is intended to be a decision-support system rather than a simple
 
 ## 2. Actors
 
-| Actor | Description |
-| --- | --- |
-| EV driver | Searches for, compares, selects, and navigates to charging stations. |
-| Registered user | An EV driver with saved vehicles, preferences, watchlists, and charging history. |
-| LTA DataMall | Supplies charging-station details and availability data. |
-| OneMap | Supplies address search, geocoding, and route information. |
-| System administrator | Monitors API operation, cached data, and system health. |
+| Actor                | Description                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| EV driver            | Searches for, compares, selects, and navigates to charging stations.             |
+| Registered user      | An EV driver with saved vehicles, preferences, watchlists, and charging history. |
+| LTA DataMall         | Supplies charging-station details and availability data.                         |
+| OneMap               | Supplies address search, geocoding, and route information.                       |
+| System administrator | Monitors API operation, cached data, and system health.                          |
 
 ## 3. Use-Case Summary
 
-| ID | Use case | Primary actor | Priority |
-| --- | --- | --- | --- |
-| UC-01 | Find compatible charging stations | EV driver | Must have |
-| UC-02 | Recommend the best charger | EV driver | Must have |
-| UC-03 | Compare charging options | EV driver | Must have |
-| UC-04 | Monitor a selected charger | Registered user | Must have |
-| UC-05 | Recommend an alternative charger | Registered user | Must have |
-| UC-06 | Manage vehicle profile and preferences | Registered user | Must have |
-| UC-07 | Record and review charging sessions | Registered user | Should have |
-| UC-08 | Predict charger availability | Registered user | Could have |
+| ID    | Use case                               | Primary actor   | Priority    |
+| ----- | -------------------------------------- | --------------- | ----------- |
+| UC-01 | Find compatible charging stations      | EV driver       | Must have   |
+| UC-02 | Recommend the best charger             | EV driver       | Must have   |
+| UC-03 | Compare charging options               | EV driver       | Must have   |
+| UC-04 | Monitor a selected charger             | Registered user | Must have   |
+| UC-05 | Recommend an alternative charger       | Registered user | Must have   |
+| UC-06 | Manage vehicle profile and preferences | Registered user | Must have   |
+| UC-07 | Record and review charging sessions    | Registered user | Should have |
+| UC-08 | Predict charger availability           | Registered user | Could have  |
 
 ## 4. Detailed Use Cases
 
@@ -305,4 +305,3 @@ Potential services include:
 - Distinguish official API data from user-submitted information.
 - Cache API responses to reduce unnecessary calls and remain usable during temporary outages.
 - Keep external API keys and tokens on the backend.
-

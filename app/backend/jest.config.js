@@ -4,5 +4,5 @@ module.exports = {
   testRegex: '.*\\.spec\\.ts$',
   transform: { '^.+\\.(t|j)s$': 'ts-jest' },
   collectCoverageFrom: ['src/**/*.ts'],
-  testEnvironment: 'node'
+  testEnvironment: 'node',
 };

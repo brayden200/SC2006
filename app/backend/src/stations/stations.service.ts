@@ -26,7 +26,10 @@ export class StationsService {
   private stations: Station[] = structuredClone(STATIONS);
   private fallbackReason: string | null = null;
 
-  constructor(private readonly lta: LtaDataMallService, private readonly oneMap: OneMapService) {}
+  constructor(
+    private readonly lta: LtaDataMallService,
+    private readonly oneMap: OneMapService,
+  ) {}
 
   getAll(): Station[] {
     return structuredClone(this.stations);
@@ -85,7 +88,8 @@ export class StationsService {
     if (dto.minPowerKw !== undefined) {
       stations = stations.filter((station) =>
         station.connectors.some(
-          (connector) => (!dto.connector || connector.type === dto.connector) && connector.powerKw >= dto.minPowerKw!,
+          (connector) =>
+            (!dto.connector || connector.type === dto.connector) && connector.powerKw >= dto.minPowerKw!,
         ),
       );
     }
@@ -102,17 +106,20 @@ export class StationsService {
     if (!dto.includeUnknown) {
       stations = stations.filter((station) =>
         station.connectors.some(
-          (connector) => (!dto.connector || connector.type === dto.connector) && connector.status !== 'unknown',
+          (connector) =>
+            (!dto.connector || connector.type === dto.connector) && connector.status !== 'unknown',
         ),
       );
     }
     if (dto.maxPrice !== undefined) {
       stations = stations.filter(
-        (station) => station.pricePerKwh !== null && station.pricePerKwh > 0 && station.pricePerKwh <= dto.maxPrice!,
+        (station) =>
+          station.pricePerKwh !== null && station.pricePerKwh > 0 && station.pricePerKwh <= dto.maxPrice!,
       );
     }
-    const operators = [...new Set(stations.map((station) => station.operator).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b));
+    const operators = [...new Set(stations.map((station) => station.operator).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b),
+    );
     if (dto.operator) {
       const requestedOperator = this.operatorKey(dto.operator);
       stations = stations.filter((station) => this.operatorKey(station.operator) === requestedOperator);
@@ -131,7 +138,10 @@ export class StationsService {
       location,
       dataStatus: {
         source: this.stations[0]?.source ?? 'Cached demo data',
-        isCached: this.stations[0]?.source !== 'LTA DataMall' || this.lta.status().state === 'error' || Boolean(this.fallbackReason),
+        isCached:
+          this.stations[0]?.source !== 'LTA DataMall' ||
+          this.lta.status().state === 'error' ||
+          Boolean(this.fallbackReason),
         lastUpdated,
         ltaDataMall: this.lta.status(),
         oneMap: this.oneMap.status(),
@@ -152,12 +162,16 @@ export class StationsService {
     try {
       const live = await this.lta.getAllStations(force);
       if (live.length) this.stations = live;
-      this.fallbackReason = this.lta.status().state === 'error'
-        ? `${this.lta.status().lastError ?? 'LTA DataMall is unavailable'}; using the most recent LTA cache.`
-        : null;
+      this.fallbackReason =
+        this.lta.status().state === 'error'
+          ? `${this.lta.status().lastError ?? 'LTA DataMall is unavailable'}; using the most recent LTA cache.`
+          : null;
       return true;
     } catch (error) {
-      this.fallbackReason = error instanceof Error ? `${error.message}; using the most recent cache.` : 'LTA DataMall unavailable; using the most recent cache.';
+      this.fallbackReason =
+        error instanceof Error
+          ? `${error.message}; using the most recent cache.`
+          : 'LTA DataMall unavailable; using the most recent cache.';
       return false;
     }
   }
@@ -180,12 +194,14 @@ export class StationsService {
     const dLon = toRad(b.longitude - a.longitude);
     const lat1 = toRad(a.latitude);
     const lat2 = toRad(b.latitude);
-    const value =
-      Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    const value = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
     return Number((earthRadiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))).toFixed(2));
   }
 
   private operatorKey(value: string) {
-    return value.toLowerCase().replace(/\b(private|pte|limited|ltd)\b\.?/g, '').replace(/[^a-z0-9+]/g, '');
+    return value
+      .toLowerCase()
+      .replace(/\b(private|pte|limited|ltd)\b\.?/g, '')
+      .replace(/[^a-z0-9+]/g, '');
   }
 }

@@ -17,7 +17,10 @@ export default function App() {
   const [page, setPage] = useState<Page>('explore');
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [providers, setProviders] = useState<{ ltaDataMall: IntegrationProviderStatus; oneMap: IntegrationProviderStatus } | null>(null);
+  const [providers, setProviders] = useState<{
+    ltaDataMall: IntegrationProviderStatus;
+    oneMap: IntegrationProviderStatus;
+  } | null>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -26,17 +29,22 @@ export default function App() {
   }, [toast]);
 
   useEffect(() => {
-    const update = () => void api.getIntegrationStatus().then(setProviders).catch(() => undefined);
+    const update = () =>
+      void api
+        .getIntegrationStatus()
+        .then(setProviders)
+        .catch(() => undefined);
     update();
     const timer = window.setInterval(update, 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const providerLabel = providers?.ltaDataMall.state === 'available'
-    ? `LTA DataMall live${providers.oneMap.state === 'available' ? ' · OneMap connected' : ''}`
-    : providers?.ltaDataMall.configured
-      ? 'Live APIs configured · fallback ready'
-      : 'Cached demo feed · add API keys for live data';
+  const providerLabel =
+    providers?.ltaDataMall.state === 'available'
+      ? `LTA DataMall live${providers.oneMap.state === 'available' ? ' · OneMap connected' : ''}`
+      : providers?.ltaDataMall.configured
+        ? 'Live APIs configured · fallback ready'
+        : 'Cached demo feed · add API keys for live data';
 
   const navigate = (next: Page) => {
     setPage(next);
@@ -48,43 +56,85 @@ export default function App() {
     <div className="app-shell">
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
-          <span className="brand-mark"><Zap size={20} strokeWidth={2.7} /></span>
-          <span>ChargeWise <b>SG</b></span>
+          <span className="brand-mark">
+            <Zap size={20} strokeWidth={2.7} />
+          </span>
+          <span>
+            ChargeWise <b>SG</b>
+          </span>
         </div>
-        <button className="mobile-close icon-button" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button>
+        <button
+          className="mobile-close icon-button"
+          onClick={() => setMenuOpen(false)}
+          aria-label="Close menu"
+        >
+          <X size={20} />
+        </button>
         <p className="nav-label">Plan your charge</p>
         <nav>
           {nav.map(({ id, label, icon: Icon }) => (
-            <button className={`nav-item ${page === id ? 'active' : ''}`} onClick={() => navigate(id)} key={id}>
-              <Icon size={19} /><span>{label}</span>
+            <button
+              className={`nav-item ${page === id ? 'active' : ''}`}
+              onClick={() => navigate(id)}
+              key={id}
+            >
+              <Icon size={19} />
+              <span>{label}</span>
               {id === 'monitoring' && <span className="nav-dot" />}
             </button>
           ))}
         </nav>
         <div className="sidebar-tip">
-          <span className="tip-icon"><Sparkles size={17} /></span>
-          <div><b>Smarter than nearest</b><p>Every recommendation explains availability, time, speed and price.</p></div>
+          <span className="tip-icon">
+            <Sparkles size={17} />
+          </span>
+          <div>
+            <b>Smarter than nearest</b>
+            <p>Every recommendation explains availability, time, speed and price.</p>
+          </div>
         </div>
         <div className="sidebar-footer">
           <div className="avatar">AL</div>
-          <div><b>Alex Lim</b><span>Demo account</span></div>
+          <div>
+            <b>Alex Lim</b>
+            <span>Demo account</span>
+          </div>
           <BatteryCharging size={18} />
         </div>
       </aside>
-      {menuOpen && <button className="sidebar-scrim" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
+      {menuOpen && (
+        <button className="sidebar-scrim" aria-label="Close menu" onClick={() => setMenuOpen(false)} />
+      )}
 
       <main className="main-content">
         <header className="topbar">
-          <button className="mobile-menu icon-button" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu /></button>
-          <div className="mobile-brand"><Zap size={18} /> ChargeWise SG</div>
-          <div className="live-indicator"><span /> {providerLabel}</div>
+          <button
+            className="mobile-menu icon-button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu />
+          </button>
+          <div className="mobile-brand">
+            <Zap size={18} /> ChargeWise SG
+          </div>
+          <div className="live-indicator">
+            <span /> {providerLabel}
+          </div>
         </header>
         {page === 'explore' && <ExplorePage navigate={navigate} notify={setToast} />}
         {page === 'monitoring' && <MonitoringPage notify={setToast} />}
         {page === 'history' && <HistoryPage notify={setToast} />}
       </main>
 
-      {toast && <div className="toast" role="status"><span><Zap size={17} /></span>{toast}</div>}
+      {toast && (
+        <div className="toast" role="status">
+          <span>
+            <Zap size={17} />
+          </span>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
