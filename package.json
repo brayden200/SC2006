@@ -1,0 +1,18 @@
+{
+  "name": "chargewise-sg",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run start:dev -w @chargewise/api\" \"npm run dev -w @chargewise/web\"",
+    "build": "npm run build -w @chargewise/api && npm run build -w @chargewise/web",
+    "test": "npm run test -w @chargewise/api && npm run test -w @chargewise/web",
+    "typecheck": "npm run typecheck -w @chargewise/api && npm run typecheck -w @chargewise/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
