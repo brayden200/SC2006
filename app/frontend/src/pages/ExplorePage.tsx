@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  AlertTriangle,
-  ChevronDown,
-  CircleAlert,
-  Filter,
-  LoaderCircle,
-  LocateFixed,
-  Search,
-  SlidersHorizontal,
-  X,
-} from 'lucide-react';
+import { ActionIcon, Alert, Button, Checkbox, Loader, Paper, Select, Slider, TextInput } from '@mantine/core';
+import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '../api';
 import { ComparisonModal } from '../components/ComparisonModal';
 import { MapPanel } from '../components/MapPanel';
@@ -193,142 +184,123 @@ export function ExplorePage({
         </div>
       </section>
 
-      <section className="search-card">
+      <Paper className="search-card" radius="lg" shadow="sm" withBorder>
         <div className="search-grid">
-          <label className="location-field">
-            <span>Where do you need to charge?</span>
-            <div>
-              <Search size={19} />
-              <input
-                value={locationQuery}
-                onChange={(event) => {
-                  setLocationQuery(event.target.value);
-                  setSearchCoords(null);
-                }}
-                placeholder="Address or postal code"
-              />
-              <button onClick={useMyLocation} aria-label="Use current location">
+          <TextInput
+            className="location-field"
+            label="Where do you need to charge?"
+            value={locationQuery}
+            onChange={(event) => {
+              setLocationQuery(event.currentTarget.value);
+              setSearchCoords(null);
+            }}
+            placeholder="Address or postal code"
+            leftSection={<Search size={18} />}
+            rightSection={
+              <ActionIcon variant="subtle" onClick={useMyLocation} aria-label="Use current location">
                 <LocateFixed size={18} />
-              </button>
-            </div>
-          </label>
-          <label>
-            <span>Connector</span>
-            <div className="select-wrap">
-              <select
-                value={connector}
-                onChange={(event) => setConnector(event.target.value as ConnectorType)}
-              >
-                <option>CCS2</option>
-                <option>Type 2</option>
-                <option>CHAdeMO</option>
-              </select>
-              <ChevronDown size={16} />
-            </div>
-          </label>
-          <label>
-            <span>Ranking priority</span>
-            <div className="select-wrap">
-              <select
-                value={priority}
-                onChange={(event) => setPriority(event.target.value as keyof typeof weightSets)}
-              >
-                {Object.keys(weightSets).map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </div>
-          </label>
-          <button
-            className="button primary search-button"
+              </ActionIcon>
+            }
+          />
+          <Select
+            label="Connector"
+            value={connector}
+            onChange={(value) => setConnector((value ?? 'CCS2') as ConnectorType)}
+            data={['CCS2', 'Type 2', 'CHAdeMO']}
+            allowDeselect={false}
+          />
+          <Select
+            label="Ranking priority"
+            value={priority}
+            onChange={(value) => setPriority((value ?? 'Balanced') as keyof typeof weightSets)}
+            data={Object.keys(weightSets)}
+            allowDeselect={false}
+          />
+          <Button
+            className="search-button"
             onClick={() => void runSearch()}
-            disabled={loading}
+            loading={loading}
+            leftSection={<Search size={17} />}
           >
-            {loading ? <LoaderCircle className="spin" /> : <Search size={18} />} Search
-          </button>
+            Search
+          </Button>
         </div>
         <div className="quick-filters">
-          <button
-            className={availableOnly ? 'active' : ''}
+          <Button
+            size="compact-sm"
+            variant={availableOnly ? 'light' : 'default'}
             onClick={() => setAvailableOnly((value) => !value)}
           >
-            <span className="toggle-dot" /> Available now
-          </button>
-          <button
-            className={minPowerKw === 100 ? 'active' : ''}
+            Available now
+          </Button>
+          <Button
+            size="compact-sm"
+            variant={minPowerKw === 100 ? 'light' : 'default'}
             onClick={() => setMinPowerKw((value) => (value === 100 ? 0 : 100))}
           >
             100+ kW fast
-          </button>
-          <button onClick={() => setFiltersOpen((value) => !value)}>
-            <SlidersHorizontal size={15} /> All filters {filtersOpen ? <X size={14} /> : <Filter size={14} />}
-          </button>
+          </Button>
+          <Button
+            size="compact-sm"
+            variant="default"
+            leftSection={<SlidersHorizontal size={14} />}
+            rightSection={filtersOpen ? <X size={13} /> : undefined}
+            onClick={() => setFiltersOpen((value) => !value)}
+          >
+            All filters
+          </Button>
         </div>
         {filtersOpen && (
           <div className="advanced-filters">
-            <label>
-              Search radius <b>{radiusKm} km</b>
-              <input
-                type="range"
-                min="2"
-                max="25"
-                value={radiusKm}
-                onChange={(event) => setRadiusKm(Number(event.target.value))}
-              />
-            </label>
-            <label>
-              Energy to add <b>{energyKwh} kWh</b>
-              <input
-                type="range"
-                min="10"
-                max="80"
-                step="5"
-                value={energyKwh}
-                onChange={(event) => setEnergyKwh(Number(event.target.value))}
-              />
-            </label>
-            <label>
-              Maximum price
-              <select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}>
-                <option value="">Any / unknown allowed</option>
-                <option value="0.50">Up to $0.50/kWh</option>
-                <option value="0.60">Up to $0.60/kWh</option>
-                <option value="0.70">Up to $0.70/kWh</option>
-              </select>
-            </label>
-            <label>
-              Operator
-              <select value={operator} onChange={(event) => setOperator(event.target.value)}>
-                <option value="">Any operator</option>
-                {(searchResult?.operators ?? []).map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={includeUnknown}
-                onChange={(event) => setIncludeUnknown(event.target.checked)}
-              />{' '}
-              Include unknown availability
-            </label>
+            <div className="filter-slider">
+              <span>Search radius</span>
+              <b>{radiusKm} km</b>
+              <Slider min={2} max={25} value={radiusKm} onChange={setRadiusKm} />
+            </div>
+            <div className="filter-slider">
+              <span>Energy to add</span>
+              <b>{energyKwh} kWh</b>
+              <Slider min={10} max={80} step={5} value={energyKwh} onChange={setEnergyKwh} />
+            </div>
+            <Select
+              label="Maximum price"
+              value={maxPrice}
+              onChange={(value) => setMaxPrice(value ?? '')}
+              data={[
+                { value: '', label: 'Any / unknown allowed' },
+                { value: '0.50', label: 'Up to $0.50/kWh' },
+                { value: '0.60', label: 'Up to $0.60/kWh' },
+                { value: '0.70', label: 'Up to $0.70/kWh' },
+              ]}
+              allowDeselect={false}
+            />
+            <Select
+              label="Operator"
+              value={operator}
+              onChange={(value) => setOperator(value ?? '')}
+              data={[
+                { value: '', label: 'Any operator' },
+                ...(searchResult?.operators ?? []).map((item) => ({ value: item, label: item })),
+              ]}
+              searchable
+              allowDeselect={false}
+            />
+            <Checkbox
+              label="Include unknown availability"
+              checked={includeUnknown}
+              onChange={(event) => setIncludeUnknown(event.currentTarget.checked)}
+            />
           </div>
         )}
-      </section>
+      </Paper>
 
       {error && (
-        <div className="error-banner">
-          <CircleAlert size={18} />
+        <Alert className="error-banner" color="red" icon={<CircleAlert size={18} />}>
           {error}
-        </div>
+        </Alert>
       )}
       {searchResult?.dataStatus.isCached ? (
-        <div className="cache-banner">
-          <AlertTriangle size={16} />
+        <Alert className="cache-banner" color="yellow" icon={<AlertTriangle size={16} />}>
           <span>
             <b>Using cached demonstration data</b> · Updated{' '}
             {new Date(searchResult.dataStatus.lastUpdated).toLocaleTimeString([], {
@@ -337,22 +309,21 @@ export function ExplorePage({
             })}
             . {searchResult.dataStatus.fallbackReason || 'Live availability is never guaranteed.'}
           </span>
-        </div>
+        </Alert>
       ) : (
         searchResult && (
-          <div className="cache-banner live-provider">
-            <span className="provider-live-dot" />
+          <Alert className="cache-banner" color="green">
             <span>
               <b>Live LTA DataMall charging data</b> · Location and travel times use{' '}
               {searchResult.dataStatus.oneMap.state === 'available' ? 'OneMap' : 'the local fallback'}.
             </span>
-          </div>
+          </Alert>
         )
       )}
 
       {loading ? (
         <div className="page-loading">
-          <LoaderCircle className="spin" />
+          <Loader size="md" />
           <h3>Ranking compatible chargers…</h3>
           <p>Balancing availability, travel, speed and price.</p>
         </div>
@@ -417,7 +388,9 @@ export function ExplorePage({
           <p>Try one of these ways to broaden your search.</p>
           <div>
             {(searchResult?.suggestions ?? []).map((item) => (
-              <button
+              <Button
+                variant="default"
+                size="compact-sm"
                 key={item}
                 onClick={() => {
                   if (item.includes('radius')) setRadiusKm(20);
@@ -425,7 +398,7 @@ export function ExplorePage({
                 }}
               >
                 {item}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -446,16 +419,12 @@ export function ExplorePage({
               <small>Choose 2–4 stations</small>
             </div>
           </div>
-          <button className="text-button" onClick={() => setCompareIds([])}>
+          <Button variant="subtle" size="compact-sm" onClick={() => setCompareIds([])}>
             Clear
-          </button>
-          <button
-            className="button primary"
-            disabled={compareIds.length < 2}
-            onClick={() => setShowComparison(true)}
-          >
+          </Button>
+          <Button disabled={compareIds.length < 2} onClick={() => setShowComparison(true)}>
             Compare side by side
-          </button>
+          </Button>
         </div>
       )}
       {showComparison && (

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Alert, Button, Loader, NumberInput, Select, SimpleGrid, Textarea, TextInput } from '@mantine/core';
 import {
   BatteryCharging,
   CalendarDays,
@@ -6,7 +7,6 @@ import {
   Clock3,
   DollarSign,
   Leaf,
-  LoaderCircle,
   MapPin,
   Plus,
   TrendingUp,
@@ -87,13 +87,13 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
           </h1>
           <p>Track charging activity, cost and the accuracy of official status data.</p>
         </div>
-        <button className="button primary add-session" onClick={() => setFormOpen(true)}>
-          <Plus size={18} /> Record session
-        </button>
+        <Button className="add-session" leftSection={<Plus size={17} />} onClick={() => setFormOpen(true)}>
+          Record session
+        </Button>
       </section>
       {loading ? (
         <div className="page-loading">
-          <LoaderCircle className="spin" />
+          <Loader size="md" />
           <h3>Calculating your charging summary…</h3>
         </div>
       ) : (
@@ -243,93 +243,75 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
           onClose={() => setFormOpen(false)}
         >
           <form className="session-form" onSubmit={(event) => void submit(event)}>
-            <label>
-              Charging station
-              <select
+            <Select
+              required
+              searchable
+              label="Charging station"
+              value={form.stationId}
+              onChange={(value) => value && setForm({ ...form, stationId: value })}
+              data={stations.map((station) => ({ value: station.id, label: station.name }))}
+              allowDeselect={false}
+            />
+            <TextInput
+              required
+              type="datetime-local"
+              label="Date and start time"
+              value={form.startedAt}
+              onChange={(event) => setForm({ ...form, startedAt: event.currentTarget.value })}
+            />
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              <NumberInput
                 required
-                value={form.stationId}
-                onChange={(event) => setForm({ ...form, stationId: event.target.value })}
-              >
-                {stations.map((station) => (
-                  <option value={station.id} key={station.id}>
-                    {station.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Date and start time
-              <input
+                label="Energy added (kWh)"
+                min={0.1}
+                max={200}
+                step={0.1}
+                decimalScale={1}
+                value={form.energyKwh}
+                onChange={(value) => setForm({ ...form, energyKwh: String(value) })}
+              />
+              <NumberInput
                 required
-                type="datetime-local"
-                value={form.startedAt}
-                onChange={(event) => setForm({ ...form, startedAt: event.target.value })}
+                label="Total cost (S$)"
+                min={0}
+                max={1000}
+                step={0.01}
+                decimalScale={2}
+                value={form.totalCost}
+                onChange={(value) => setForm({ ...form, totalCost: String(value) })}
               />
-            </label>
-            <div className="form-pair">
-              <label>
-                Energy added (kWh)
-                <input
-                  required
-                  type="number"
-                  min="0.1"
-                  max="200"
-                  step="0.1"
-                  value={form.energyKwh}
-                  onChange={(event) => setForm({ ...form, energyKwh: event.target.value })}
-                />
-              </label>
-              <label>
-                Total cost (S$)
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="0.01"
-                  value={form.totalCost}
-                  onChange={(event) => setForm({ ...form, totalCost: event.target.value })}
-                />
-              </label>
-            </div>
-            <div className="form-pair">
-              <label>
-                Duration (minutes)
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  max="1440"
-                  value={form.durationMinutes}
-                  onChange={(event) => setForm({ ...form, durationMinutes: event.target.value })}
-                />
-              </label>
-              <label>
-                Was official status accurate?
-                <select
-                  value={form.officialStatusAccurate}
-                  onChange={(event) => setForm({ ...form, officialStatusAccurate: event.target.value })}
-                >
-                  <option value="true">Yes, accurate</option>
-                  <option value="false">No, inaccurate</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              Note (optional)
-              <textarea
-                rows={3}
-                placeholder="Anything useful about this charge…"
-                value={form.note}
-                onChange={(event) => setForm({ ...form, note: event.target.value })}
+              <NumberInput
+                required
+                label="Duration (minutes)"
+                min={1}
+                max={1440}
+                value={form.durationMinutes}
+                onChange={(value) => setForm({ ...form, durationMinutes: String(value) })}
               />
-            </label>
-            <div className="form-note">
-              <Clock3 size={16} /> This record is labeled as user-submitted data.
-            </div>
-            <button className="button primary full-width" disabled={saving}>
-              {saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />} Save session
-            </button>
+              <Select
+                label="Was official status accurate?"
+                value={form.officialStatusAccurate}
+                onChange={(value) => value && setForm({ ...form, officialStatusAccurate: value })}
+                data={[
+                  { value: 'true', label: 'Yes, accurate' },
+                  { value: 'false', label: 'No, inaccurate' },
+                ]}
+                allowDeselect={false}
+              />
+            </SimpleGrid>
+            <Textarea
+              label="Note (optional)"
+              rows={3}
+              placeholder="Anything useful about this charge…"
+              value={form.note}
+              onChange={(event) => setForm({ ...form, note: event.currentTarget.value })}
+            />
+            <Alert className="form-note" color="yellow" icon={<Clock3 size={16} />}>
+              This record is labeled as user-submitted data.
+            </Alert>
+            <Button type="submit" fullWidth loading={saving} leftSection={<Plus size={17} />}>
+              Save session
+            </Button>
           </form>
         </Modal>
       )}

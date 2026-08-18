@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Alert, Button, Loader, Switch } from '@mantine/core';
 import {
   AlertTriangle,
   BellRing,
   CarFront,
   Check,
   Clock3,
-  LoaderCircle,
   MapPin,
   Radio,
   RefreshCw,
@@ -101,31 +101,25 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
           </h1>
           <p>We check your selected charger and flag changes before you arrive.</p>
         </div>
-        <label className={`driving-toggle ${drivingMode ? 'active' : ''}`}>
-          <CarFront size={19} />
-          <span>
-            <b>Driving mode</b>
-            <small>Simplified alerts</small>
-          </span>
-          <input
-            type="checkbox"
-            checked={drivingMode}
-            onChange={(event) => setDrivingMode(event.target.checked)}
-          />
-          <i />
-        </label>
+        <Switch
+          className="driving-switch"
+          checked={drivingMode}
+          onChange={(event) => setDrivingMode(event.currentTarget.checked)}
+          label="Driving mode"
+          description="Simplified alerts"
+          thumbIcon={<CarFront size={11} />}
+        />
       </section>
 
-      <div className="monitor-info">
-        <Radio size={17} />
+      <Alert className="monitor-info" color="green" icon={<Radio size={17} />}>
         <span>
           <b>Automatic checks every 30 seconds</b> while the API is running. This page refreshes every 15
           seconds.
         </span>
-      </div>
+      </Alert>
       {loading ? (
         <div className="page-loading">
-          <LoaderCircle className="spin" />
+          <Loader />
           <h3>Loading your watchlist…</h3>
         </div>
       ) : active.length === 0 ? (
@@ -203,28 +197,29 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                   ))}
                 </div>
                 <div className="monitor-actions">
-                  <button className="button ghost danger-text" onClick={() => void stop(monitor)}>
-                    <Square size={15} /> Stop
-                  </button>
-                  <button
-                    className="button secondary"
-                    disabled={checking === monitor.id}
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    leftSection={<Square size={15} />}
+                    onClick={() => void stop(monitor)}
+                  >
+                    Stop
+                  </Button>
+                  <Button
+                    variant="light"
+                    loading={checking === monitor.id}
+                    leftSection={<RefreshCw size={16} />}
                     onClick={() => void check(monitor)}
                   >
-                    {checking === monitor.id ? (
-                      <LoaderCircle className="spin" size={16} />
-                    ) : (
-                      <RefreshCw size={16} />
-                    )}{' '}
                     Demo status change
-                  </button>
-                  <button
-                    className="button primary"
+                  </Button>
+                  <Button
                     disabled={checking === monitor.id}
+                    leftSection={<Route size={17} />}
                     onClick={() => void findAlternatives(monitor)}
                   >
-                    <Route size={17} /> Find alternative
-                  </button>
+                    Find alternative
+                  </Button>
                 </div>
               </article>
             );
@@ -277,12 +272,13 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                 }{' '}
                 available
               </p>
-              <button
-                className="button primary full-width"
+              <Button
+                fullWidth
+                leftSection={<Check size={18} />}
                 onClick={() => void accept(alternatives.recommended!.id)}
               >
-                <Check size={18} /> Switch and keep monitoring
-              </button>
+                Switch and keep monitoring
+              </Button>
               <small>Only interact when it is safe to do so.</small>
             </div>
           ) : (
@@ -315,9 +311,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                       </span>
                     </div>
                     <p className="alt-reason">{station.reasons[0]}</p>
-                    <button className="button primary" onClick={() => void accept(station.id)}>
-                      Switch monitoring
-                    </button>
+                    <Button onClick={() => void accept(station.id)}>Switch monitoring</Button>
                   </article>
                 );
               })}

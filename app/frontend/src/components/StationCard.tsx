@@ -1,3 +1,4 @@
+import { Button } from '@mantine/core';
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react';
 import { formatPrice, hasKnownPrice, timeAgo } from '../lib';
 import type { ConnectorType, RankedStation } from '../types';
@@ -98,19 +99,23 @@ export function StationCard({
         <span className="operator-tag">{station.operator}</span>
       </div>
       <div className="station-actions">
-        <button className={`compare-toggle ${compared ? 'checked' : ''}`} onClick={onCompare}>
-          <Scale size={16} />
+        <Button
+          variant={compared ? 'light' : 'default'}
+          size="xs"
+          leftSection={<Scale size={16} />}
+          onClick={onCompare}
+        >
           {compared ? 'Selected' : 'Compare'}
-        </button>
-        <button className="text-button" onClick={onPredict}>
+        </Button>
+        <Button variant="subtle" size="xs" onClick={onPredict}>
           Predict availability
-        </button>
-        <button className="text-button" onClick={onDetails}>
-          Details <ChevronRight size={15} />
-        </button>
-        <button className="button secondary" onClick={onMonitor}>
+        </Button>
+        <Button variant="subtle" size="xs" rightSection={<ChevronRight size={15} />} onClick={onDetails}>
+          Details
+        </Button>
+        <Button variant="light" size="xs" onClick={onMonitor}>
           Monitor
-        </button>
+        </Button>
       </div>
     </article>
   );

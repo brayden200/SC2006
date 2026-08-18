@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Check, LoaderCircle, Minus, Trophy } from 'lucide-react';
+import { Alert, Button, Loader } from '@mantine/core';
+import { Check, Minus, Trophy } from 'lucide-react';
 import { api, type CompareResponse } from '../api';
 import { formatPrice, hasKnownPrice } from '../lib';
 import type { ConnectorType, RankedStation } from '../types';
@@ -83,10 +84,10 @@ export function ComparisonModal({
     >
       {!data && !error && (
         <div className="loading-state">
-          <LoaderCircle className="spin" /> Comparing live options…
+          <Loader /> Comparing live options…
         </div>
       )}
-      {error && <div className="error-banner">{error}</div>}
+      {error && <Alert color="red">{error}</Alert>}
       {data && (
         <div className="compare-scroll">
           <table className="comparison-table">
@@ -123,12 +124,14 @@ export function ComparisonModal({
                 <th>Your choice</th>
                 {data.options.map((item) => (
                   <td key={item.id}>
-                    <button
-                      className="button secondary"
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<Check size={15} />}
                       onClick={() => onChoose(stations.find((station) => station.id === item.id)!)}
                     >
-                      <Check size={15} /> Choose
-                    </button>
+                      Choose
+                    </Button>
                   </td>
                 ))}
               </tr>

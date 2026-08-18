@@ -1,3 +1,4 @@
+import { Button } from '@mantine/core';
 import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react';
 import { formatPrice, hasKnownPrice, timeAgo } from '../lib';
 import type { ConnectorType, Station } from '../types';
@@ -24,9 +25,9 @@ export function StationDetailsModal({
           <b>{station.address}</b>
           <small>Singapore {station.postalCode}</small>
         </div>
-        <button className="button secondary">
-          <Navigation size={16} /> Directions
-        </button>
+        <Button variant="light" size="xs" leftSection={<Navigation size={16} />}>
+          Directions
+        </Button>
       </div>
       <h3 className="section-mini-title">Charging connectors</h3>
       <div className="connector-list">
@@ -63,9 +64,9 @@ export function StationDetailsModal({
           <p>Availability is a snapshot and may change before you arrive.</p>
         </div>
       </div>
-      <button className="button primary full-width" onClick={onMonitor}>
+      <Button fullWidth onClick={onMonitor}>
         Monitor this {connector} charger
-      </button>
+      </Button>
     </Modal>
   );
 }

@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mantine/core": "^9.5.1",
+    "@mantine/hooks": "^9.5.1",
     "@vitejs/plugin-react": "^4.3.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",

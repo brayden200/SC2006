@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BarChart3, CalendarClock, Database, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { Alert, Button, TextInput } from '@mantine/core';
+import { BarChart3, CalendarClock, Database, ShieldCheck } from 'lucide-react';
 import { api, type Prediction } from '../api';
 import { toLocalInput } from '../lib';
 import type { Station } from '../types';
@@ -25,21 +26,18 @@ export function PredictionModal({ station, onClose }: { station: Station; onClos
   return (
     <Modal title="Predict availability" subtitle={station.name} onClose={onClose}>
       <div className="prediction-form">
-        <label>
-          When do you plan to arrive?
-          <input
-            type="datetime-local"
-            value={arrival}
-            min={toLocalInput(new Date())}
-            onChange={(event) => setArrival(event.target.value)}
-          />
-        </label>
-        <button className="button primary" onClick={predict} disabled={loading}>
-          {loading ? <LoaderCircle className="spin" size={17} /> : <BarChart3 size={17} />} Generate
-          prediction
-        </button>
+        <TextInput
+          label="When do you plan to arrive?"
+          type="datetime-local"
+          value={arrival}
+          min={toLocalInput(new Date())}
+          onChange={(event) => setArrival(event.currentTarget.value)}
+        />
+        <Button loading={loading} leftSection={<BarChart3 size={17} />} onClick={predict}>
+          Generate prediction
+        </Button>
       </div>
-      {error && <div className="error-banner">{error}</div>}
+      {error && <Alert color="red">{error}</Alert>}
       {prediction && prediction.status === 'prediction_available' && (
         <div className="prediction-result">
           <div
