@@ -27,7 +27,6 @@ export function ComparisonModal({ stations, connector, energyKwh, location, onCl
     { key: 'estimatedCost', label: `Est. cost (${energyKwh} kWh)`, value: (item) => formatPrice(item.estimatedCost) },
     { key: 'travelMinutes', label: 'Travel time', value: (item) => `${item.travelMinutes} min` },
     { key: 'travelSource', label: 'Travel data', value: (item) => item.travelSource },
-    { key: 'operatingHours', label: 'Operating hours', value: (item) => item.operatingHours ?? 'Unknown' },
     { key: 'operator', label: 'Operator', value: (item) => item.operator },
   ];
 

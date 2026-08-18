@@ -67,7 +67,7 @@ export interface CompareOption {
   availability: number | null; availabilityStatus: string; powerKw: number | null;
   estimatedChargeMinutes: number | null; pricePerKwh: number | null;
   estimatedCost: number | null; distanceKm: number; travelMinutes: number;
-  operatingHours: string | null; lastUpdated: string;
+  lastUpdated: string;
   travelSource: 'OneMap' | 'Straight-line estimate';
 }
 export interface CompareResponse {

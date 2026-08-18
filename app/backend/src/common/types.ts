@@ -19,8 +19,6 @@ export interface Station {
   operator: string;
   connectors: Connector[];
   pricePerKwh: number | null;
-  operatingHours: string | null;
-  amenities: string[];
   source: 'LTA DataMall' | 'Cached demo data';
   lastUpdated: string;
 }

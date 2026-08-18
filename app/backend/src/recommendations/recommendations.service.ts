@@ -139,7 +139,6 @@ export class RecommendationsService {
         distanceKm,
         travelMinutes: route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60)),
         travelSource: route ? 'OneMap' : 'Straight-line estimate',
-        operatingHours: station.operatingHours,
         lastUpdated: station.lastUpdated,
       };
     }));

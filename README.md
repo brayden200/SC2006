@@ -57,7 +57,7 @@ UC-06 is not present: there is no vehicle-profile or saved-preferences screen. R
 - OneMap Search geocodes user input and OneMap Routing supplies driving distance and duration. Responses are cached to respect API limits; route failures fall back to clearly labeled straight-line estimates.
 - Every station response identifies its source and includes `lastUpdated`. `/api/integrations/status` reports provider health without exposing credentials.
 - `LTA_ACCOUNT_KEY`, `ONEMAP_TOKEN`, `ONEMAP_EMAIL`, and `ONEMAP_PASSWORD` are backend-only and are never referenced by frontend code.
-- Unknown prices, statuses, and operating hours stay unknown. They are not fabricated.
+- Unknown prices and statuses stay unknown. They are not fabricated. Operating hours and amenities are omitted because the current LTA batch does not provide them.
 - An incompatible connector is removed before recommendation scoring.
 - Availability is always presented as a snapshot, never as a reservation or guarantee.
 - User-entered charging sessions are labeled `User submitted`.

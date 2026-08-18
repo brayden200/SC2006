@@ -1,4 +1,4 @@
-import { BatteryCharging, Building2, Clock3, Database, MapPin, Navigation, PlugZap } from 'lucide-react';
+import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react';
 import { formatPrice, timeAgo } from '../lib';
 import type { ConnectorType, Station } from '../types';
 import { Modal } from './Modal';
@@ -21,8 +21,6 @@ export function StationDetailsModal({ station, connector, onClose, onMonitor }: 
       </div>
       <div className="details-grid">
         <div><BatteryCharging /><span>Price</span><b>{station.pricePerKwh === null ? 'Unknown' : `${formatPrice(station.pricePerKwh)}/kWh`}</b></div>
-        <div><Clock3 /><span>Operating hours</span><b>{station.operatingHours ?? 'Unknown'}</b></div>
-        <div><Building2 /><span>Amenities</span><b>{station.amenities.join(', ')}</b></div>
         <div><Database /><span>Data source</span><b>{station.source}</b></div>
       </div>
       <div className="data-note"><Database size={16} /><div><b>Updated {timeAgo(station.lastUpdated)}</b><p>Availability is a snapshot and may change before you arrive.</p></div></div>

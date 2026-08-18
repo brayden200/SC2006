@@ -1,42 +1,163 @@
+import { useEffect, useMemo, useState } from 'react';
+import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet';
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { LocateFixed, Minus, Plus } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
 import type { Station } from '../types';
 
-export function MapPanel({ stations, selectedId, onSelect, location }: { stations: Station[]; selectedId?: string; onSelect: (station: Station) => void; location: { latitude: number; longitude: number; label?: string } }) {
-  const bounds = {
-    minLat: Math.min(location.latitude, ...stations.map((item) => item.latitude)) - 0.006,
-    maxLat: Math.max(location.latitude, ...stations.map((item) => item.latitude)) + 0.006,
-    minLng: Math.min(location.longitude, ...stations.map((item) => item.longitude)) - 0.006,
-    maxLng: Math.max(location.longitude, ...stations.map((item) => item.longitude)) + 0.006,
-  };
-  const position = (lat: number, lng: number) => ({
-    left: `${8 + ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng || 1)) * 84}%`,
-    top: `${8 + (1 - (lat - bounds.minLat) / (bounds.maxLat - bounds.minLat || 1)) * 84}%`,
+interface MapLocation {
+  latitude: number;
+  longitude: number;
+  label?: string;
+}
+
+interface MapPanelProps {
+  stations: Station[];
+  selectedId?: string;
+  onSelect: (station: Station) => void;
+  location: MapLocation;
+}
+
+function MapViewport({ stations, location }: { stations: Station[]; location: MapLocation }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const points: [number, number][] = [
+      [location.latitude, location.longitude],
+      ...stations.map((station) => [station.latitude, station.longitude] as [number, number]),
+    ];
+
+    if (points.length === 1) {
+      map.setView(points[0], 15);
+      return;
+    }
+
+    map.fitBounds(new LatLngBounds(points), {
+      animate: false,
+      maxZoom: 15,
+      padding: [46, 46],
+    });
+  }, [location.latitude, location.longitude, map, stations]);
+
+  return null;
+}
+
+function stationIcon(rank: number, available: boolean, selected: boolean) {
+  return divIcon({
+    className: 'station-marker-shell',
+    html: `<span class="station-marker ${available ? 'available' : 'busy'} ${selected ? 'selected' : ''}">${rank}</span>`,
+    iconAnchor: [18, 42],
+    iconSize: [36, 42],
+    tooltipAnchor: [0, -36],
   });
+}
+
+export function MapPanel({ stations, selectedId, onSelect, location }: MapPanelProps) {
+  const [map, setMap] = useState<LeafletMap | null>(null);
+  const [zoom, setZoom] = useState(13);
+
+  useEffect(() => {
+    if (!map) return;
+    const syncZoom = () => setZoom(map.getZoom());
+    syncZoom();
+    map.on('zoomend', syncZoom);
+    return () => { map.off('zoomend', syncZoom); };
+  }, [map]);
+
+  const icons = useMemo(() => stations.map((station, index) => {
+    const available = station.connectors.some((connector) => (connector.available ?? 0) > 0);
+    return stationIcon(index + 1, available, selectedId === station.id);
+  }), [selectedId, stations]);
+
+  const zoomIn = () => map?.zoomIn();
+  const zoomOut = () => map?.zoomOut();
+  const recenter = () => map?.flyTo(
+    [location.latitude, location.longitude],
+    Math.max(map.getZoom(), 15),
+    { duration: 0.65 },
+  );
 
   return (
-    <div className="map-panel">
-      <div className="map-road road-a" /><div className="map-road road-b" /><div className="map-road road-c" /><div className="map-road road-d" />
-      <div className="map-water">MARINA BAY</div>
-      <div className="map-label map-label-a">ORCHARD</div><div className="map-label map-label-b">CITY HALL</div>
-      <span className="location-pulse" style={position(location.latitude, location.longitude)} title={location.label}><span /></span>
-      {stations.map((station, index) => {
-        const connector = station.connectors[0];
-        const available = station.connectors.some((item) => (item.available ?? 0) > 0);
-        return (
-          <button
-            key={station.id}
-            className={`map-pin ${selectedId === station.id ? 'selected' : ''} ${available ? '' : 'busy'}`}
-            style={position(station.latitude, station.longitude)}
-            onClick={() => onSelect(station)}
-            aria-label={`View ${station.name}`}
-          >
-            <span>{index + 1}</span>
-            <div className="map-tooltip"><b>{station.name}</b><small>{connector.available ?? '?'} available · {connector.powerKw} kW</small></div>
-          </button>
-        );
-      })}
-      <div className="map-controls"><button aria-label="Zoom in"><Plus size={17} /></button><button aria-label="Zoom out"><Minus size={17} /></button><button aria-label="My location"><LocateFixed size={17} /></button></div>
-      <div className="map-legend"><span><i className="legend-available" /> Available</span><span><i className="legend-busy" /> Busy</span><span><i className="legend-you" /> You</span></div>
+    <div className="map-panel" role="region" aria-label={`Interactive charger map near ${location.label ?? 'your search location'}`}>
+      <MapContainer
+        center={[location.latitude, location.longitude]}
+        zoom={13}
+        zoomControl={false}
+        scrollWheelZoom
+        ref={(nextMap) => setMap(nextMap)}
+        className="interactive-map"
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+        />
+        <MapViewport stations={stations} location={location} />
+
+        <CircleMarker
+          center={[location.latitude, location.longitude]}
+          radius={9}
+          pathOptions={{ color: '#ffffff', fillColor: '#3784cf', fillOpacity: 1, weight: 3 }}
+          interactive={false}
+          className="search-location-marker"
+        />
+        <CircleMarker
+          center={[location.latitude, location.longitude]}
+          radius={18}
+          pathOptions={{ color: '#3784cf', fillColor: '#3784cf', fillOpacity: 0.09, weight: 1 }}
+          interactive={false}
+        />
+
+        {stations.map((station, index) => {
+          const connector = station.connectors[0];
+          const selected = selectedId === station.id;
+          return (
+            <Marker
+              key={station.id}
+              position={[station.latitude, station.longitude]}
+              icon={icons[index]}
+              zIndexOffset={selected ? 1000 : 0}
+              title={`View ${station.name}`}
+              alt={`${station.name} charger`}
+              eventHandlers={{ click: () => onSelect(station) }}
+            >
+              <Tooltip
+                direction="top"
+                offset={point(0, -2)}
+                opacity={1}
+                permanent={selected}
+                className="station-map-tooltip"
+              >
+                <b>{station.name}</b>
+                <span>{connector?.available ?? 'Unknown'} available · {connector?.powerKw ?? '—'} kW</span>
+              </Tooltip>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+
+      <div className="map-controls" aria-label="Map controls">
+        <button type="button" onClick={zoomIn} disabled={!map || zoom >= map.getMaxZoom()} aria-label="Zoom in" title="Zoom in">
+          <Plus size={17} />
+        </button>
+        <button type="button" onClick={zoomOut} disabled={!map || zoom <= map.getMinZoom()} aria-label="Zoom out" title="Zoom out">
+          <Minus size={17} />
+        </button>
+        <button type="button" onClick={recenter} disabled={!map} aria-label="Recenter on search location" title="Recenter on search location">
+          <LocateFixed size={17} />
+        </button>
+      </div>
+
+      <div className="map-search-label" title={location.label}>
+        <LocateFixed size={13} />
+        <span>Search center</span>
+        <b>{location.label ?? 'Selected location'}</b>
+      </div>
+      <div className="map-legend">
+        <span><i className="legend-available" /> Available</span>
+        <span><i className="legend-busy" /> Busy</span>
+        <span><i className="legend-you" /> Search center</span>
+      </div>
     </div>
   );
 }

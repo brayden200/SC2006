@@ -82,11 +82,9 @@ export class LtaDataMallService {
     const chargingPoints = this.arrayOfRecords(record.chargingPoints ?? record.ChargingPoints);
     const connectorGroups = new Map<ConnectorType, { powers: number[]; statuses: unknown[]; prices: number[]; total: number; available: number }>();
     let operator = '';
-    let operatingHours: string | null = null;
 
     for (const point of chargingPoints) {
       operator ||= this.string(point.operator ?? point.Operator);
-      operatingHours ||= this.nullableString(point.operationHours ?? point.operatingHours ?? point.OperatingHours);
       const pointStatus = point.status ?? point.Status;
       const plugTypes = this.arrayOfRecords(point.plugTypes ?? point.PlugTypes);
       for (const plug of plugTypes) {
@@ -131,8 +129,6 @@ export class LtaDataMallService {
       operator: operator || 'Unknown',
       connectors,
       pricePerKwh: allPrices.length ? Math.min(...allPrices) : null,
-      operatingHours,
-      amenities: [],
       source: 'LTA DataMall',
       lastUpdated: fetchedAt,
     };
