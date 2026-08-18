@@ -95,7 +95,7 @@ export class LtaDataMallService {
         if (power !== null) group.powers.push(power);
         const priceType = this.string(plug.priceType ?? plug.PriceType).toLowerCase().replace('$', '');
         const price = this.number(plug.price ?? plug.Price);
-        if (price !== null && (priceType.includes('kwh') || priceType === '')) group.prices.push(price);
+        if (price !== null && price > 0 && (priceType.includes('kwh') || priceType === '')) group.prices.push(price);
         const evIds = this.arrayOfRecords(plug.evIds ?? plug.EvIds ?? plug.EVIds);
         const statuses = evIds.length ? evIds.map((item) => item.status ?? item.Status) : [pointStatus];
         group.statuses.push(...statuses);

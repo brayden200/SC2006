@@ -43,7 +43,7 @@ export interface RankedStation extends Station {
   travelMinutes: number | null;
   travelSource: 'OneMap' | 'Straight-line estimate';
   estimatedCost: number | null;
-  estimatedChargeMinutes: number;
+  estimatedChargeMinutes: number | null;
   scoreBreakdown: ScoreBreakdown;
   reasons: string[];
 }

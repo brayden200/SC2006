@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, LoaderCircle, Minus, Trophy } from 'lucide-react';
 import { api, type CompareResponse } from '../api';
-import { formatPrice } from '../lib';
+import { formatPrice, hasKnownPrice } from '../lib';
 import type { ConnectorType, RankedStation } from '../types';
 import { Modal } from './Modal';
 
@@ -23,7 +23,7 @@ export function ComparisonModal({ stations, connector, energyKwh, location, onCl
     { key: 'availability', label: 'Available now', value: (item) => item.availability === null ? 'Unknown' : `${item.availability} charger${item.availability === 1 ? '' : 's'}` },
     { key: 'powerKw', label: 'Charging speed', value: (item) => item.powerKw === null ? 'Unknown' : `${item.powerKw} kW` },
     { key: 'estimatedChargeMinutes', label: 'Est. charge time', value: (item) => item.estimatedChargeMinutes === null ? 'Unknown' : `${item.estimatedChargeMinutes} min` },
-    { key: 'pricePerKwh', label: 'Price', value: (item) => item.pricePerKwh === null ? 'Unknown' : `${formatPrice(item.pricePerKwh)}/kWh` },
+    { key: 'pricePerKwh', label: 'Price', value: (item) => hasKnownPrice(item.pricePerKwh) ? `${formatPrice(item.pricePerKwh)}/kWh` : 'Unknown' },
     { key: 'estimatedCost', label: `Est. cost (${energyKwh} kWh)`, value: (item) => formatPrice(item.estimatedCost) },
     { key: 'travelMinutes', label: 'Travel time', value: (item) => `${item.travelMinutes} min` },
     { key: 'travelSource', label: 'Travel data', value: (item) => item.travelSource },

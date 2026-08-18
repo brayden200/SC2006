@@ -34,4 +34,16 @@ describe('RecommendationsService', () => {
     expect(ranked.scoreBreakdown.price).toBeNull();
     expect(ranked.reasons).toContain('Price is unknown and was excluded from scoring');
   });
+
+  it('treats a zero-dollar station price as unknown during ranking', () => {
+    const station = stations.findById('cw-orchard-central');
+    const ranked = service.rankStation({ ...station, pricePerKwh: 0, distanceKm: 1 }, {
+      latitude: 1.3008,
+      longitude: 103.8393,
+      connector: 'CCS2',
+    });
+    expect(ranked.pricePerKwh).toBeNull();
+    expect(ranked.estimatedCost).toBeNull();
+    expect(ranked.scoreBreakdown.price).toBeNull();
+  });
 });

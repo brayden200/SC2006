@@ -52,14 +52,16 @@ export class RecommendationsService {
 
     const distanceKm = route?.distanceKm ?? station.distanceKm ?? this.stationsService.distanceKm(dto, station);
     const availability = connector.available === null ? 35 : (connector.available / connector.total) * 100;
+    const powerKw = connector.powerKw > 0 ? connector.powerKw : null;
+    const pricePerKwh = station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null;
     const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60));
     const travelTime = route
       ? Math.max(0, 100 - (travelMinutes / 45) * 100)
       : Math.max(0, 100 - (distanceKm / Math.max(dto.radiusKm ?? 8, 1)) * 100);
-    const chargingSpeed = Math.min(100, (connector.powerKw / 200) * 100);
-    const price = station.pricePerKwh === null
+    const chargingSpeed = powerKw === null ? 0 : Math.min(100, (powerKw / 200) * 100);
+    const price = pricePerKwh === null
       ? null
-      : Math.max(0, Math.min(100, 100 - ((station.pricePerKwh - 0.4) / 0.4) * 100));
+      : Math.max(0, Math.min(100, 100 - ((pricePerKwh - 0.4) / 0.4) * 100));
     const preference = dto.preferredOperator
       ? station.operator === dto.preferredOperator ? 100 : 35
       : 70;
@@ -80,21 +82,22 @@ export class RecommendationsService {
         preference * rawWeights.preference) /
       weightTotal;
 
-    const estimatedChargeMinutes = Math.max(10, Math.round(((dto.energyKwh ?? 35) / connector.powerKw) * 60 * 1.12));
-    const estimatedCost = station.pricePerKwh === null
+    const estimatedChargeMinutes = powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12));
+    const estimatedCost = pricePerKwh === null
       ? null
-      : Number((station.pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2));
+      : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2));
 
     const reasons: string[] = [];
     if (price === null) reasons.push('Price is unknown and was excluded from scoring');
     if ((connector.available ?? 0) > 0) reasons.push(`${connector.available} compatible charger${connector.available === 1 ? '' : 's'} available now`);
-    if (connector.powerKw >= 100) reasons.push(`Fast ${connector.powerKw} kW charging`);
+    if ((powerKw ?? 0) >= 100) reasons.push(`Fast ${powerKw} kW charging`);
     if (distanceKm < 3) reasons.push(`Only ${travelMinutes} minutes away`);
-    if (station.pricePerKwh !== null && station.pricePerKwh <= 0.55) reasons.push(`Competitive rate of $${station.pricePerKwh.toFixed(2)}/kWh`);
+    if (pricePerKwh !== null && pricePerKwh <= 0.55) reasons.push(`Competitive rate of $${pricePerKwh.toFixed(2)}/kWh`);
     if (dto.preferredOperator === station.operator) reasons.push(`Matches your preferred operator`);
 
     return {
       ...structuredClone(station),
+      pricePerKwh,
       score: Math.round(score),
       distanceKm,
       travelMinutes,
@@ -120,6 +123,8 @@ export class RecommendationsService {
     const origin = { latitude: dto.latitude ?? 1.3048, longitude: dto.longitude ?? 103.8318 };
     const options = await Promise.all(stations.map(async (station) => {
       const connector = station.connectors.find((item) => item.type === dto.connector);
+      const powerKw = connector && connector.powerKw > 0 ? connector.powerKw : null;
+      const pricePerKwh = station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null;
       let route: RouteResult | null = null;
       try { route = await this.oneMap.drivingRoute(origin, station); } catch { route = null; }
       const distanceKm = route?.distanceKm ?? this.stationsService.distanceKm(origin, station);
@@ -130,12 +135,12 @@ export class RecommendationsService {
         connectorCompatible: Boolean(connector),
         availability: connector?.available ?? null,
         availabilityStatus: connector?.status ?? 'unknown',
-        powerKw: connector?.powerKw ?? null,
-        estimatedChargeMinutes: connector
-          ? Math.max(10, Math.round(((dto.energyKwh ?? 35) / connector.powerKw) * 60 * 1.12))
+        powerKw,
+        estimatedChargeMinutes: powerKw
+          ? Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
           : null,
-        pricePerKwh: station.pricePerKwh,
-        estimatedCost: station.pricePerKwh === null ? null : Number((station.pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2)),
+        pricePerKwh,
+        estimatedCost: pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2)),
         distanceKm,
         travelMinutes: route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60)),
         travelSource: route ? 'OneMap' : 'Straight-line estimate',

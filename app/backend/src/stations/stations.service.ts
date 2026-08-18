@@ -108,7 +108,7 @@ export class StationsService {
     }
     if (dto.maxPrice !== undefined) {
       stations = stations.filter(
-        (station) => station.pricePerKwh !== null && station.pricePerKwh <= dto.maxPrice!,
+        (station) => station.pricePerKwh !== null && station.pricePerKwh > 0 && station.pricePerKwh <= dto.maxPrice!,
       );
     }
     const operators = [...new Set(stations.map((station) => station.operator).filter(Boolean))]

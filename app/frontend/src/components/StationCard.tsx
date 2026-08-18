@@ -1,5 +1,5 @@
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react';
-import { formatPrice, timeAgo } from '../lib';
+import { formatPrice, hasKnownPrice, timeAgo } from '../lib';
 import type { ConnectorType, RankedStation } from '../types';
 
 interface Props {
@@ -16,7 +16,8 @@ interface Props {
 }
 
 export function StationCard({ station, connector, rank, best, compared, onCompare, onDetails, onMonitor, onPredict, onHover }: Props) {
-  const plug = station.connectors.find((item) => item.type === connector)!;
+  const plug = station.connectors.find((item) => item.type === connector);
+  if (!plug) return null;
   const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0;
   return (
     <article className={`station-card ${best ? 'best-station' : ''}`} onMouseEnter={onHover}>
@@ -31,9 +32,9 @@ export function StationCard({ station, connector, rank, best, compared, onCompar
       </div>
       <div className="station-metrics">
         <div><span className={`availability-pill ${isAvailable ? '' : 'busy'}`}><i /> {plug.available ?? 'Unknown'} available</span><small>of {plug.total} · {timeAgo(station.lastUpdated)}</small></div>
-        <div><Gauge size={17} /><b>{plug.powerKw} kW</b><small>{station.estimatedChargeMinutes} min est.</small></div>
+        <div><Gauge size={17} /><b>{plug.powerKw > 0 ? `${plug.powerKw} kW` : 'Unknown'}</b><small>{station.estimatedChargeMinutes === null ? 'Time unknown' : `${station.estimatedChargeMinutes} min est.`}</small></div>
         <div><Clock3 size={17} /><b>{station.travelMinutes ?? '—'} min</b><small>{station.travelSource === 'OneMap' ? 'OneMap route' : `${station.distanceKm.toFixed(1)} km est.`}</small></div>
-        <div><BatteryCharging size={17} /><b>{formatPrice(station.pricePerKwh)}{station.pricePerKwh !== null && '/kWh'}</b><small>{station.estimatedCost === null ? 'Cost unknown' : `$${station.estimatedCost.toFixed(2)} est.`}</small></div>
+        <div><BatteryCharging size={17} /><b>{formatPrice(station.pricePerKwh)}{hasKnownPrice(station.pricePerKwh) && '/kWh'}</b><small>{station.estimatedCost === null ? 'Cost unknown' : `$${station.estimatedCost.toFixed(2)} est.`}</small></div>
       </div>
       <div className="reason-row">
         <div>{station.reasons.slice(0, 2).map((reason) => <span key={reason}><Check size={13} />{reason}</span>)}</div>

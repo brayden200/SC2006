@@ -31,6 +31,14 @@ describe('LtaDataMallService', () => {
     expect(station.connectors[0]).toMatchObject({ available: null, status: 'offline' });
   });
 
+  it('treats a zero-dollar LTA price as unknown', () => {
+    const service = new LtaDataMallService(new ConfigService({}));
+    const station = service.normalizePayload([{ latitude: 1.3, longitude: 103.8, name: 'Zero price',
+      chargingPoints: [{ plugTypes: [{ plugType: 'CCS2', chargingSpeed: 50, price: 0, priceType: '$/kWh', evIds: [{ status: 1 }] }] }],
+    }])[0];
+    expect(station.pricePerKwh).toBeNull();
+  });
+
   it('supports the live EVCBatch envelope and field variants', () => {
     const service = new LtaDataMallService(new ConfigService({}));
     const station = service.normalizePayload({ LastUpdatedTime: '2026-08-18 15:40:00', evLocationsData: [{

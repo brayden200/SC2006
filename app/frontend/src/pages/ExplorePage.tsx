@@ -18,6 +18,7 @@ const weightSets = {
 export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => void; notify: (message: string) => void }) {
   const [locationQuery, setLocationQuery] = useState('Orchard Road');
   const [connector, setConnector] = useState<ConnectorType>('CCS2');
+  const [appliedConnector, setAppliedConnector] = useState<ConnectorType>('CCS2');
   const [radiusKm, setRadiusKm] = useState(8);
   const [availableOnly, setAvailableOnly] = useState(true);
   const [includeUnknown, setIncludeUnknown] = useState(false);
@@ -37,20 +38,21 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
   const [predicting, setPredicting] = useState<Station | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string>();
   const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
 
   const runSearch = async (initial = false) => {
+    const requestedConnector = connector;
     setLoading(true); setError(''); setCompareIds([]);
     try {
       const search = await api.searchStations({
         query: locationQuery, latitude: searchCoords?.latitude, longitude: searchCoords?.longitude,
-        radiusKm, connector, availableOnly, includeUnknown, minPowerKw: minPowerKw || undefined,
+        radiusKm, connector: requestedConnector, availableOnly, includeUnknown, minPowerKw: minPowerKw || undefined,
         maxPrice: maxPrice || undefined, operator: operator || undefined,
       });
       setSearchResult(search);
       const ranked = await api.recommend({
         latitude: search.location.latitude, longitude: search.location.longitude, locationLabel: search.location.label,
-        radiusKm, connector, energyKwh, maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        radiusKm, connector: requestedConnector, energyKwh, maxPrice: maxPrice ? Number(maxPrice) : undefined,
         minPowerKw: minPowerKw || undefined, availableOnly, includeUnknown,
         operator: operator || undefined, preferredOperator: operator || undefined, ...weightSets[priority],
       });
@@ -58,6 +60,7 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
       ranked.ranked = ranked.ranked.filter((item) => allowed.has(item.id));
       ranked.recommended = ranked.ranked[0] ?? null;
       ranked.alternatives = ranked.ranked.slice(1, 3);
+      setAppliedConnector(requestedConnector);
       setRecommendation(ranked);
       if (ranked.recommended) setMapSelectedId(ranked.recommended.id);
       if (!initial) notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`);
@@ -71,13 +74,18 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
     if (!navigator.geolocation) { setError('Location is unavailable. Enter an address or postal code instead.'); return; }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const nextLocation = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        const nextLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        };
         setCurrentLocation(nextLocation);
-        setSearchCoords(nextLocation);
+        setSearchCoords({ latitude: nextLocation.latitude, longitude: nextLocation.longitude });
         setLocationQuery('My current location');
-        notify('Current location added — press Search to refresh nearby stations');
+        notify(`Current location found (about ${Math.round(nextLocation.accuracy)} m accuracy) — press Search to refresh`);
       },
       () => setError('Location permission was denied. Enter an address or Singapore postal code instead.'),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
     );
   };
 
@@ -90,7 +98,7 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
   };
   const monitor = async (station: Station) => {
     try {
-      await api.createMonitor(station.id, connector);
+      await api.createMonitor(station.id, appliedConnector);
       notify(`Monitoring ${station.name} for 90 minutes`);
       setDetails(null); navigate('monitoring');
     } catch (reason) { notify((reason as Error).message); }
@@ -130,15 +138,15 @@ export function ExplorePage({ navigate, notify }: { navigate: (page: Page) => vo
         <div className="results-heading"><div><h2>{searchResult && searchResult.totalMatches > ranked.length ? `Top ${ranked.length} of ${searchResult.totalMatches}` : ranked.length} compatible options</h2><p>Near {searchResult?.location.label} · ranked for {priority.toLowerCase()}</p></div><span className="result-updated"><i /> Data checked just now</span></div>
         <div className="results-layout">
           <div className="station-list">
-            {ranked.map((station, index) => <StationCard key={station.id} station={station} connector={connector} rank={index + 1} best={index === 0} compared={compareIds.includes(station.id)} onCompare={() => toggleCompare(station.id)} onDetails={() => setDetails(station)} onMonitor={() => void monitor(station)} onPredict={() => setPredicting(station)} onHover={() => setMapSelectedId(station.id)} />)}
+            {ranked.map((station, index) => <StationCard key={station.id} station={station} connector={appliedConnector} rank={index + 1} best={index === 0} compared={compareIds.includes(station.id)} onCompare={() => toggleCompare(station.id)} onDetails={() => setDetails(station)} onMonitor={() => void monitor(station)} onPredict={() => setPredicting(station)} onHover={() => setMapSelectedId(station.id)} />)}
           </div>
-          <aside className="map-column"><MapPanel stations={ranked} selectedId={mapSelectedId} onSelect={(station) => { setMapSelectedId(station.id); setDetails(station); }} location={searchResult!.location} currentLocation={currentLocation ?? undefined} /><div className="map-disclaimer"><CircleAlert size={15} /> Availability is a snapshot, not a reservation.</div></aside>
+          <aside className="map-column"><MapPanel stations={ranked} connector={appliedConnector} selectedId={mapSelectedId} onSelect={(station) => { setMapSelectedId(station.id); setDetails(station); }} location={searchResult!.location} currentLocation={currentLocation ?? undefined} /><div className="map-disclaimer"><CircleAlert size={15} /> Availability is a snapshot, not a reservation.</div></aside>
         </div>
       </> : <div className="empty-state"><Search size={34} /><h2>No compatible stations found</h2><p>Try one of these ways to broaden your search.</p><div>{(searchResult?.suggestions ?? []).map((item) => <button key={item} onClick={() => { if (item.includes('radius')) setRadiusKm(20); if (item.includes('unknown')) setIncludeUnknown(true); }}>{item}</button>)}</div></div>}
 
       {compareIds.length > 0 && <div className="compare-tray"><div><span className="compare-stack">{compared.map((item, index) => <i key={item.id} style={{ zIndex: index }}>{item.name.charAt(0)}</i>)}</span><div><b>{compareIds.length} selected</b><small>Choose 2–4 stations</small></div></div><button className="text-button" onClick={() => setCompareIds([])}>Clear</button><button className="button primary" disabled={compareIds.length < 2} onClick={() => setShowComparison(true)}>Compare side by side</button></div>}
-      {showComparison && <ComparisonModal stations={compared} connector={connector} energyKwh={energyKwh} location={searchResult!.location} onClose={() => setShowComparison(false)} onChoose={(station) => { setShowComparison(false); setDetails(station); notify(`${station.name} selected`); }} />}
-      {details && <StationDetailsModal station={details} connector={connector} onClose={() => setDetails(null)} onMonitor={() => void monitor(details)} />}
+      {showComparison && <ComparisonModal stations={compared} connector={appliedConnector} energyKwh={energyKwh} location={searchResult!.location} onClose={() => setShowComparison(false)} onChoose={(station) => { setShowComparison(false); setDetails(station); notify(`${station.name} selected`); }} />}
+      {details && <StationDetailsModal station={details} connector={appliedConnector} onClose={() => setDetails(null)} onMonitor={() => void monitor(details)} />}
       {predicting && <PredictionModal station={predicting} onClose={() => setPredicting(null)} />}
     </div>
   );
