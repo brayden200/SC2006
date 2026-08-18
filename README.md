@@ -31,8 +31,8 @@ For separate production builds:
 
 ```bash
 npm run build
-npm run start -w @chargewise/api
-npm run dev -w @chargewise/web
+npm run start -w @chargewise/backend
+npm run dev -w @chargewise/frontend
 ```
 
 The Vite development server proxies `/api` to port 3000. To point the frontend elsewhere, set `VITE_API_URL` using `.env.example` as a guide.
@@ -66,15 +66,15 @@ UC-06 is not present: there is no vehicle-profile or saved-preferences screen. R
 ## Project structure
 
 ```text
-apps/
-  api/                  NestJS API
+app/
+  backend/              NestJS API
     src/integrations/   LTA DataMall and OneMap clients, normalization and caches
     src/stations/       Live/cache provider selection and filtering
     src/recommendations Scoring and comparison
     src/monitoring/     Watchlist and alternatives
     src/sessions/       Charging history and summaries
     src/predictions/    Historical availability model
-  web/                  React/Vite client
+  frontend/             React/Vite client
     src/components/     Shared map, cards and dialogs
     src/pages/          Explore, monitoring and history flows
 ```

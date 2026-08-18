@@ -3,4 +3,4 @@ dist
 .env
 .DS_Store
 coverage
-apps/web/.vite
+app/frontend/.vite
