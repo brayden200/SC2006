@@ -1,4 +1,4 @@
-import { createTheme } from '@mantine/core';
+import { createTheme } from '@mantine/core'
 
 export const theme = createTheme({
   primaryColor: 'chargewise',
@@ -32,4 +32,4 @@ export const theme = createTheme({
       defaultProps: { radius: 'lg', centered: true },
     },
   },
-});
+})

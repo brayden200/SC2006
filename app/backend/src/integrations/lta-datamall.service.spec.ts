@@ -1,9 +1,9 @@
-import { ConfigService } from '@nestjs/config';
-import { LtaDataMallService } from './lta-datamall.service';
+import { ConfigService } from '@nestjs/config'
+import { LtaDataMallService } from './lta-datamall.service'
 
 describe('LtaDataMallService', () => {
   it('normalizes the documented nested EV charging-point structure', () => {
-    const service = new LtaDataMallService(new ConfigService({}));
+    const service = new LtaDataMallService(new ConfigService({}))
     const stations = service.normalizePayload(
       {
         value: [
@@ -35,27 +35,27 @@ describe('LtaDataMallService', () => {
         ],
       },
       '2026-08-18T00:00:00.000Z',
-    );
+    )
 
-    expect(stations).toHaveLength(1);
+    expect(stations).toHaveLength(1)
     expect(stations[0]).toMatchObject({
       name: 'Test Hub',
       postalCode: '123456',
       source: 'LTA DataMall',
       operator: 'Test EVCO',
       pricePerKwh: 0.58,
-    });
+    })
     expect(stations[0].connectors[0]).toMatchObject({
       type: 'CCS2',
       powerKw: 120,
       total: 2,
       available: 1,
       status: 'available',
-    });
-  });
+    })
+  })
 
   it('keeps unavailable LTA statuses distinct from occupied statuses', () => {
-    const service = new LtaDataMallService(new ConfigService({}));
+    const service = new LtaDataMallService(new ConfigService({}))
     const station = service.normalizePayload([
       {
         latitude: 1.3,
@@ -63,12 +63,12 @@ describe('LtaDataMallService', () => {
         name: 'Offline',
         chargingPoints: [{ plugTypes: [{ plugType: 'Type 2', chargingSpeed: 22, evIds: [{ status: '' }] }] }],
       },
-    ])[0];
-    expect(station.connectors[0]).toMatchObject({ available: null, status: 'offline' });
-  });
+    ])[0]
+    expect(station.connectors[0]).toMatchObject({ available: null, status: 'offline' })
+  })
 
   it('treats a zero-dollar LTA price as unknown', () => {
-    const service = new LtaDataMallService(new ConfigService({}));
+    const service = new LtaDataMallService(new ConfigService({}))
     const station = service.normalizePayload([
       {
         latitude: 1.3,
@@ -82,12 +82,12 @@ describe('LtaDataMallService', () => {
           },
         ],
       },
-    ])[0];
-    expect(station.pricePerKwh).toBeNull();
-  });
+    ])[0]
+    expect(station.pricePerKwh).toBeNull()
+  })
 
   it('supports the live EVCBatch envelope and field variants', () => {
-    const service = new LtaDataMallService(new ConfigService({}));
+    const service = new LtaDataMallService(new ConfigService({}))
     const station = service.normalizePayload({
       LastUpdatedTime: '2026-08-18 15:40:00',
       evLocationsData: [
@@ -121,16 +121,16 @@ describe('LtaDataMallService', () => {
           ],
         },
       ],
-    })[0];
+    })[0]
 
-    expect(station).not.toHaveProperty('operatingHours');
-    expect(station).not.toHaveProperty('amenities');
-    expect(station.pricePerKwh).toBe(0.62);
+    expect(station).not.toHaveProperty('operatingHours')
+    expect(station).not.toHaveProperty('amenities')
+    expect(station.pricePerKwh).toBe(0.62)
     expect(station.connectors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: 'CCS2', powerKw: 150, available: 1 }),
         expect.objectContaining({ type: 'Type 2', powerKw: 22, available: 0, status: 'busy' }),
       ]),
-    );
-  });
-});
+    )
+  })
+})

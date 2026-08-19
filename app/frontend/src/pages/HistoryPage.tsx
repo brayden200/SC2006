@@ -1,5 +1,5 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { Alert, Button, Loader, NumberInput, Select, SimpleGrid, Textarea, TextInput } from '@mantine/core';
+import { FormEvent, useEffect, useState } from 'react'
+import { Alert, Button, Loader, NumberInput, Select, SimpleGrid, Textarea, TextInput } from '@mantine/core'
 import {
   BatteryCharging,
   CalendarDays,
@@ -11,18 +11,18 @@ import {
   Plus,
   TrendingUp,
   Zap,
-} from 'lucide-react';
-import { api, type SessionsResponse } from '../api';
-import { Modal } from '../components/Modal';
-import { toLocalInput } from '../lib';
-import type { Station } from '../types';
+} from 'lucide-react'
+import { api, type SessionsResponse } from '../api'
+import { Modal } from '../components/Modal'
+import { toLocalInput } from '../lib'
+import type { Station } from '../types'
 
 export function HistoryPage({ notify }: { notify: (message: string) => void }) {
-  const [data, setData] = useState<SessionsResponse | null>(null);
-  const [stations, setStations] = useState<Station[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [data, setData] = useState<SessionsResponse | null>(null)
+  const [stations, setStations] = useState<Station[]>([])
+  const [loading, setLoading] = useState(true)
+  const [formOpen, setFormOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     stationId: '',
     startedAt: toLocalInput(new Date()),
@@ -31,33 +31,33 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
     durationMinutes: '',
     officialStatusAccurate: 'true',
     note: '',
-  });
+  })
   const load = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       const [sessions, stationData] = await Promise.all([
         api.getSessions(),
         api.searchStations({ query: 'Singapore', radiusKm: 50, includeUnknown: true }),
-      ]);
-      setData(sessions);
-      setStations(stationData.stations);
+      ])
+      setData(sessions)
+      setStations(stationData.stations)
       setForm((current) =>
         stationData.stations.some((station) => station.id === current.stationId)
           ? current
           : { ...current, stationId: stationData.stations[0]?.id ?? current.stationId },
-      );
+      )
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
   useEffect(() => {
-    void load();
-  }, []);
+    void load()
+  }, [])
   const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setSaving(true);
+    event.preventDefault()
+    setSaving(true)
     try {
       await api.createSession({
         ...form,
@@ -66,17 +66,17 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
         totalCost: Number(form.totalCost),
         durationMinutes: Number(form.durationMinutes),
         officialStatusAccurate: form.officialStatusAccurate === 'true',
-      });
-      setFormOpen(false);
-      await load();
-      notify('Charging session saved');
+      })
+      setFormOpen(false)
+      await load()
+      notify('Charging session saved')
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
-  const maxCost = Math.max(1, ...(data?.sessions.map((item) => item.totalCost) ?? [1]));
+  }
+  const maxCost = Math.max(1, ...(data?.sessions.map((item) => item.totalCost) ?? [1]))
   return (
     <div className="page history-page">
       <section className="page-heading split-heading">
@@ -334,5 +334,5 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
         </Modal>
       )}
     </div>
-  );
+  )
 }

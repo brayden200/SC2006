@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { Alert, Button, TextInput } from '@mantine/core';
-import { BarChart3, CalendarClock, Database, ShieldCheck } from 'lucide-react';
-import { api, type Prediction } from '../api';
-import { toLocalInput } from '../lib';
-import type { Station } from '../types';
-import { Modal } from './Modal';
+import { useState } from 'react'
+import { Alert, Button, TextInput } from '@mantine/core'
+import { BarChart3, CalendarClock, Database, ShieldCheck } from 'lucide-react'
+import { api, type Prediction } from '../api'
+import { toLocalInput } from '../lib'
+import type { Station } from '../types'
+import { Modal } from './Modal'
 
 export function PredictionModal({ station, onClose }: { station: Station; onClose: () => void }) {
-  const [arrival, setArrival] = useState(toLocalInput());
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [arrival, setArrival] = useState(toLocalInput())
+  const [prediction, setPrediction] = useState<Prediction | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const predict = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
     try {
-      setPrediction(await api.getPrediction(station.id, new Date(arrival).toISOString()));
+      setPrediction(await api.getPrediction(station.id, new Date(arrival).toISOString()))
     } catch (reason) {
-      setError((reason as Error).message);
+      setError((reason as Error).message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <Modal title="Predict availability" subtitle={station.name} onClose={onClose}>
@@ -81,5 +81,5 @@ export function PredictionModal({ station, onClose }: { station: Station; onClos
         </div>
       )}
     </Modal>
-  );
+  )
 }

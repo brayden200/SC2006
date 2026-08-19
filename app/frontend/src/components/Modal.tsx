@@ -1,5 +1,5 @@
-import { Modal as MantineModal } from '@mantine/core';
-import type { ReactNode } from 'react';
+import { Modal as MantineModal } from '@mantine/core'
+import type { ReactNode } from 'react'
 
 export function Modal({
   title,
@@ -8,11 +8,11 @@ export function Modal({
   onClose,
   wide = false,
 }: {
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  onClose: () => void;
-  wide?: boolean;
+  title: string
+  subtitle?: string
+  children: ReactNode
+  onClose: () => void
+  wide?: boolean
 }) {
   return (
     <MantineModal
@@ -31,5 +31,5 @@ export function Modal({
     >
       {children}
     </MantineModal>
-  );
+  )
 }

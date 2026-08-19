@@ -1,19 +1,19 @@
-import { Button } from '@mantine/core';
-import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react';
-import { formatPrice, hasKnownPrice, timeAgo } from '../lib';
-import type { ConnectorPreference, RankedStation } from '../types';
+import { Button } from '@mantine/core'
+import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react'
+import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
+import type { ConnectorPreference, RankedStation } from '../types'
 
 interface Props {
-  station: RankedStation;
-  connector: ConnectorPreference;
-  rank: number;
-  best?: boolean;
-  compared: boolean;
-  onCompare: () => void;
-  onDetails: () => void;
-  onMonitor: () => void;
-  onPredict: () => void;
-  onHover: () => void;
+  station: RankedStation
+  connector: ConnectorPreference
+  rank: number
+  best?: boolean
+  compared: boolean
+  onCompare: () => void
+  onDetails: () => void
+  onMonitor: () => void
+  onPredict: () => void
+  onHover: () => void
 }
 
 export function StationCard({
@@ -29,10 +29,10 @@ export function StationCard({
   onHover,
 }: Props) {
   const selectedConnector =
-    station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector);
-  const plug = station.connectors.find((item) => item.type === selectedConnector);
-  if (!plug) return null;
-  const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0;
+    station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector)
+  const plug = station.connectors.find((item) => item.type === selectedConnector)
+  if (!plug) return null
+  const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0
   return (
     <article className={`station-card ${best ? 'best-station' : ''}`} onMouseEnter={onHover}>
       {best && (
@@ -120,5 +120,5 @@ export function StationCard({
         </Button>
       </div>
     </article>
-  );
+  )
 }

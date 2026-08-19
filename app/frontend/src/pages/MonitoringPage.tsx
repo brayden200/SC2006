@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Alert, Button, Loader, Switch } from '@mantine/core';
+import { useEffect, useState } from 'react'
+import { Alert, Button, Loader, Switch } from '@mantine/core'
 import {
   AlertTriangle,
   BellRing,
@@ -13,84 +13,84 @@ import {
   ShieldAlert,
   Square,
   Zap,
-} from 'lucide-react';
-import { api, type AlternativesResponse } from '../api';
-import { Modal } from '../components/Modal';
-import { timeAgo } from '../lib';
-import type { Monitor } from '../types';
+} from 'lucide-react'
+import { api, type AlternativesResponse } from '../api'
+import { Modal } from '../components/Modal'
+import { timeAgo } from '../lib'
+import type { Monitor } from '../types'
 
 export function MonitoringPage({ notify }: { notify: (message: string) => void }) {
-  const [monitors, setMonitors] = useState<Monitor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [checking, setChecking] = useState<string>();
-  const [alternatives, setAlternatives] = useState<AlternativesResponse | null>(null);
-  const [alternativeMonitor, setAlternativeMonitor] = useState<Monitor | null>(null);
-  const [drivingMode, setDrivingMode] = useState(false);
+  const [monitors, setMonitors] = useState<Monitor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [checking, setChecking] = useState<string>()
+  const [alternatives, setAlternatives] = useState<AlternativesResponse | null>(null)
+  const [alternativeMonitor, setAlternativeMonitor] = useState<Monitor | null>(null)
+  const [drivingMode, setDrivingMode] = useState(false)
 
   const load = async (quiet = false) => {
-    if (!quiet) setLoading(true);
+    if (!quiet) setLoading(true)
     try {
-      setMonitors((await api.getMonitors()).monitors);
+      setMonitors((await api.getMonitors()).monitors)
     } catch (reason) {
-      if (!quiet) notify((reason as Error).message);
+      if (!quiet) notify((reason as Error).message)
     } finally {
-      if (!quiet) setLoading(false);
+      if (!quiet) setLoading(false)
     }
-  };
+  }
   useEffect(() => {
-    void load();
-    const timer = window.setInterval(() => void load(true), 15_000);
-    return () => window.clearInterval(timer);
-  }, []);
+    void load()
+    const timer = window.setInterval(() => void load(true), 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const check = async (monitor: Monitor) => {
-    setChecking(monitor.id);
+    setChecking(monitor.id)
     try {
-      const updated = await api.checkMonitor(monitor.id);
-      await load(true);
-      const latest = updated.events[0];
-      notify(latest.type === 'availability_changed' ? latest.message : 'Availability checked — no change');
+      const updated = await api.checkMonitor(monitor.id)
+      await load(true)
+      const latest = updated.events[0]
+      notify(latest.type === 'availability_changed' ? latest.message : 'Availability checked — no change')
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     } finally {
-      setChecking(undefined);
+      setChecking(undefined)
     }
-  };
+  }
   const findAlternatives = async (monitor: Monitor) => {
-    setChecking(monitor.id);
+    setChecking(monitor.id)
     try {
-      setAlternatives(await api.getAlternatives(monitor.id, 1.3048, 103.8318));
-      setAlternativeMonitor(monitor);
+      setAlternatives(await api.getAlternatives(monitor.id, 1.3048, 103.8318))
+      setAlternativeMonitor(monitor)
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     } finally {
-      setChecking(undefined);
+      setChecking(undefined)
     }
-  };
+  }
   const accept = async (stationId: string) => {
-    if (!alternativeMonitor) return;
+    if (!alternativeMonitor) return
     try {
-      const updated = await api.acceptAlternative(alternativeMonitor.id, stationId);
-      setAlternatives(null);
-      setAlternativeMonitor(null);
-      await load(true);
-      notify(`Switched monitoring to ${updated.station.name}`);
+      const updated = await api.acceptAlternative(alternativeMonitor.id, stationId)
+      setAlternatives(null)
+      setAlternativeMonitor(null)
+      await load(true)
+      notify(`Switched monitoring to ${updated.station.name}`)
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     }
-  };
+  }
   const stop = async (monitor: Monitor) => {
     try {
-      await api.stopMonitor(monitor.id);
-      await load(true);
-      notify(`Stopped monitoring ${monitor.station.name}`);
+      await api.stopMonitor(monitor.id)
+      await load(true)
+      notify(`Stopped monitoring ${monitor.station.name}`)
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     }
-  };
+  }
 
-  const active = monitors.filter((item) => item.status === 'active');
-  const past = monitors.filter((item) => item.status !== 'active');
+  const active = monitors.filter((item) => item.status === 'active')
+  const past = monitors.filter((item) => item.status !== 'active')
   return (
     <div className="page monitoring-page">
       <section className="page-heading split-heading">
@@ -131,9 +131,9 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
       ) : (
         <div className="monitor-grid">
           {active.map((monitor) => {
-            const connector = monitor.station.connectors.find((item) => item.type === monitor.connector)!;
-            const latestChange = monitor.events.find((item) => item.type === 'availability_changed');
-            const unavailable = (connector.available ?? 0) === 0;
+            const connector = monitor.station.connectors.find((item) => item.type === monitor.connector)!
+            const latestChange = monitor.events.find((item) => item.type === 'availability_changed')
+            const unavailable = (connector.available ?? 0) === 0
             return (
               <article className={`monitor-card ${unavailable ? 'monitor-alert' : ''}`} key={monitor.id}>
                 <div className="monitor-card-head">
@@ -222,7 +222,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                   </Button>
                 </div>
               </article>
-            );
+            )
           })}
         </div>
       )}
@@ -246,8 +246,8 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
           title={drivingMode ? 'Safer charger available' : 'Alternative chargers'}
           subtitle={drivingMode ? 'One-tap decision for driving mode' : alternatives.message}
           onClose={() => {
-            setAlternatives(null);
-            setAlternativeMonitor(null);
+            setAlternatives(null)
+            setAlternativeMonitor(null)
           }}
           wide={!drivingMode}
         >
@@ -284,7 +284,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
           ) : (
             <div className="alternative-list">
               {alternatives.alternatives.map((station, index) => {
-                const plug = station.connectors.find((item) => item.type === alternativeMonitor.connector)!;
+                const plug = station.connectors.find((item) => item.type === alternativeMonitor.connector)!
                 return (
                   <article key={station.id} className={index === 0 ? 'recommended-alt' : ''}>
                     {index === 0 && (
@@ -313,12 +313,12 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                     <p className="alt-reason">{station.reasons[0]}</p>
                     <Button onClick={() => void accept(station.id)}>Switch monitoring</Button>
                   </article>
-                );
+                )
               })}
             </div>
           )}
         </Modal>
       )}
     </div>
-  );
+  )
 }

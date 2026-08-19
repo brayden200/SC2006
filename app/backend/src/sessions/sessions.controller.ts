@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { CreateSessionDto } from './dto/create-session.dto';
-import { SessionsService } from './sessions.service';
+import { Body, Controller, Get, Post } from '@nestjs/common'
+import { CreateSessionDto } from './dto/create-session.dto'
+import { SessionsService } from './sessions.service'
 
 @Controller('sessions')
 export class SessionsController {
@@ -8,11 +8,11 @@ export class SessionsController {
 
   @Get()
   list() {
-    return this.sessionsService.list();
+    return this.sessionsService.list()
   }
 
   @Post()
   create(@Body() dto: CreateSessionDto) {
-    return this.sessionsService.create(dto);
+    return this.sessionsService.create(dto)
   }
 }

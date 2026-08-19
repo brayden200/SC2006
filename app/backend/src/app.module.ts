@@ -1,13 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
-import { HealthController } from './health.controller';
-import { StationsModule } from './stations/stations.module';
-import { RecommendationsModule } from './recommendations/recommendations.module';
-import { MonitoringModule } from './monitoring/monitoring.module';
-import { SessionsModule } from './sessions/sessions.module';
-import { PredictionsModule } from './predictions/predictions.module';
-import { IntegrationsModule } from './integrations/integrations.module';
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { ScheduleModule } from '@nestjs/schedule'
+import { HealthController } from './health.controller'
+import { StationsModule } from './stations/stations.module'
+import { RecommendationsModule } from './recommendations/recommendations.module'
+import { MonitoringModule } from './monitoring/monitoring.module'
+import { SessionsModule } from './sessions/sessions.module'
+import { PredictionsModule } from './predictions/predictions.module'
+import { IntegrationsModule } from './integrations/integrations.module'
 
 @Module({
   imports: [

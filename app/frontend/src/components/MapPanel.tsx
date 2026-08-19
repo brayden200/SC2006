@@ -1,47 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
-import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet';
-import { Circle, CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { LocateFixed, Minus, Plus } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import type { ConnectorPreference, RankedStation } from '../types';
+import { useEffect, useMemo, useState } from 'react'
+import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet'
+import { Circle, CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { LocateFixed, Minus, Plus } from 'lucide-react'
+import 'leaflet/dist/leaflet.css'
+import type { ConnectorPreference, RankedStation } from '../types'
 
 interface MapLocation {
-  latitude: number;
-  longitude: number;
-  label?: string;
+  latitude: number
+  longitude: number
+  label?: string
 }
 
 interface MapPanelProps {
-  stations: RankedStation[];
-  connector: ConnectorPreference;
-  selectedId?: string;
-  onSelect: (station: RankedStation) => void;
-  location: MapLocation;
-  currentLocation?: Pick<MapLocation, 'latitude' | 'longitude'> & { accuracy: number };
+  stations: RankedStation[]
+  connector: ConnectorPreference
+  selectedId?: string
+  onSelect: (station: RankedStation) => void
+  location: MapLocation
+  currentLocation?: Pick<MapLocation, 'latitude' | 'longitude'> & { accuracy: number }
 }
 
 function MapViewport({ stations, location }: { stations: RankedStation[]; location: MapLocation }) {
-  const map = useMap();
+  const map = useMap()
 
   useEffect(() => {
     const points: [number, number][] = [
       [location.latitude, location.longitude],
       ...stations.map((station) => [station.latitude, station.longitude] as [number, number]),
-    ];
+    ]
 
     if (points.length === 1) {
-      map.setView(points[0], 15);
-      return;
+      map.setView(points[0], 15)
+      return
     }
 
     map.fitBounds(new LatLngBounds(points), {
       animate: false,
       maxZoom: 15,
       padding: [46, 46],
-    });
-  }, [location.latitude, location.longitude, map, stations]);
+    })
+  }, [location.latitude, location.longitude, map, stations])
 
-  return null;
+  return null
 }
 
 function stationIcon(rank: number, available: boolean, selected: boolean) {
@@ -51,7 +51,7 @@ function stationIcon(rank: number, available: boolean, selected: boolean) {
     iconAnchor: [18, 42],
     iconSize: [36, 42],
     tooltipAnchor: [0, -36],
-  });
+  })
 }
 
 export function MapPanel({
@@ -62,38 +62,38 @@ export function MapPanel({
   location,
   currentLocation,
 }: MapPanelProps) {
-  const [map, setMap] = useState<LeafletMap | null>(null);
-  const [zoom, setZoom] = useState(13);
+  const [map, setMap] = useState<LeafletMap | null>(null)
+  const [zoom, setZoom] = useState(13)
 
   useEffect(() => {
-    if (!map) return;
-    const syncZoom = () => setZoom(map.getZoom());
-    syncZoom();
-    map.on('zoomend', syncZoom);
+    if (!map) return
+    const syncZoom = () => setZoom(map.getZoom())
+    syncZoom()
+    map.on('zoomend', syncZoom)
     return () => {
-      map.off('zoomend', syncZoom);
-    };
-  }, [map]);
+      map.off('zoomend', syncZoom)
+    }
+  }, [map])
 
   const icons = useMemo(
     () =>
       stations.map((station, index) => {
         const selectedConnector =
-          station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector);
+          station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector)
         const available =
-          (station.connectors.find((item) => item.type === selectedConnector)?.available ?? 0) > 0;
-        return stationIcon(index + 1, available, selectedId === station.id);
+          (station.connectors.find((item) => item.type === selectedConnector)?.available ?? 0) > 0
+        return stationIcon(index + 1, available, selectedId === station.id)
       }),
     [connector, selectedId, stations],
-  );
+  )
 
-  const zoomIn = () => map?.zoomIn();
-  const zoomOut = () => map?.zoomOut();
+  const zoomIn = () => map?.zoomIn()
+  const zoomOut = () => map?.zoomOut()
   const recenter = () =>
     currentLocation &&
     map?.flyTo([currentLocation.latitude, currentLocation.longitude], Math.max(map.getZoom(), 15), {
       duration: 0.65,
-    });
+    })
 
   return (
     <div
@@ -136,9 +136,9 @@ export function MapPanel({
 
         {stations.map((station, index) => {
           const selectedConnector =
-            station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector);
-          const stationConnector = station.connectors.find((item) => item.type === selectedConnector);
-          const selected = selectedId === station.id;
+            station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector)
+          const stationConnector = station.connectors.find((item) => item.type === selectedConnector)
+          const selected = selectedId === station.id
           return (
             <Marker
               key={station.id}
@@ -163,7 +163,7 @@ export function MapPanel({
                 </span>
               </Tooltip>
             </Marker>
-          );
+          )
         })}
       </MapContainer>
 
@@ -216,5 +216,5 @@ export function MapPanel({
         )}
       </div>
     </div>
-  );
+  )
 }

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Alert, Button, Loader } from '@mantine/core';
-import { Check, Minus, Trophy } from 'lucide-react';
-import { api, type CompareResponse } from '../api';
-import { formatPrice, hasKnownPrice } from '../lib';
-import type { ConnectorPreference, RankedStation } from '../types';
-import { Modal } from './Modal';
+import { useEffect, useState } from 'react'
+import { Alert, Button, Loader } from '@mantine/core'
+import { Check, Minus, Trophy } from 'lucide-react'
+import { api, type CompareResponse } from '../api'
+import { formatPrice, hasKnownPrice } from '../lib'
+import type { ConnectorPreference, RankedStation } from '../types'
+import { Modal } from './Modal'
 
 export function ComparisonModal({
   stations,
@@ -14,15 +14,15 @@ export function ComparisonModal({
   onClose,
   onChoose,
 }: {
-  stations: RankedStation[];
-  connector: ConnectorPreference;
-  energyKwh: number;
-  location: { latitude: number; longitude: number };
-  onClose: () => void;
-  onChoose: (station: RankedStation) => void;
+  stations: RankedStation[]
+  connector: ConnectorPreference
+  energyKwh: number
+  location: { latitude: number; longitude: number }
+  onClose: () => void
+  onChoose: (station: RankedStation) => void
 }) {
-  const [data, setData] = useState<CompareResponse | null>(null);
-  const [error, setError] = useState('');
+  const [data, setData] = useState<CompareResponse | null>(null)
+  const [error, setError] = useState('')
   useEffect(() => {
     api
       .compare({
@@ -33,13 +33,13 @@ export function ComparisonModal({
         longitude: location.longitude,
       })
       .then(setData)
-      .catch((reason: Error) => setError(reason.message));
-  }, [stations, connector, energyKwh, location]);
+      .catch((reason: Error) => setError(reason.message))
+  }, [stations, connector, energyKwh, location])
 
   const rows: Array<{
-    key: keyof NonNullable<CompareResponse['options'][number]>;
-    label: string;
-    value: (value: CompareResponse['options'][number]) => string;
+    key: keyof NonNullable<CompareResponse['options'][number]>
+    label: string
+    value: (value: CompareResponse['options'][number]) => string
   }> = [
     {
       key: 'connector',
@@ -78,7 +78,7 @@ export function ComparisonModal({
     { key: 'travelMinutes', label: 'Travel time', value: (item) => `${item.travelMinutes} min` },
     { key: 'travelSource', label: 'Travel data', value: (item) => item.travelSource },
     { key: 'operator', label: 'Operator', value: (item) => item.operator },
-  ];
+  ]
 
   return (
     <Modal
@@ -112,16 +112,16 @@ export function ComparisonModal({
                 <tr key={row.key}>
                   <th>{row.label}</th>
                   {data.options.map((item) => {
-                    const highlight = data.highlights[row.key];
-                    const best = highlight?.best.includes(item.id);
-                    const weak = highlight?.weakest.includes(item.id) && !best;
+                    const highlight = data.highlights[row.key]
+                    const best = highlight?.best.includes(item.id)
+                    const weak = highlight?.weakest.includes(item.id) && !best
                     return (
                       <td key={item.id} className={best ? 'cell-best' : weak ? 'cell-weak' : ''}>
                         {best && <Trophy size={14} />}
                         {weak && <Minus size={14} />}
                         {row.value(item)}
                       </td>
-                    );
+                    )
                   })}
                 </tr>
               ))}
@@ -145,5 +145,5 @@ export function ComparisonModal({
         </div>
       )}
     </Modal>
-  );
+  )
 }

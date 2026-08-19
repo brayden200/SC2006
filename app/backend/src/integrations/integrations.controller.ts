@@ -1,6 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
-import { LtaDataMallService } from './lta-datamall.service';
-import { OneMapService } from './onemap.service';
+import { Controller, Get } from '@nestjs/common'
+import { LtaDataMallService } from './lta-datamall.service'
+import { OneMapService } from './onemap.service'
 
 @Controller('integrations')
 export class IntegrationsController {
@@ -11,6 +11,6 @@ export class IntegrationsController {
 
   @Get('status')
   status() {
-    return { ltaDataMall: this.lta.status(), oneMap: this.oneMap.status() };
+    return { ltaDataMall: this.lta.status(), oneMap: this.oneMap.status() }
   }
 }

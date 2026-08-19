@@ -1,6 +1,6 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto';
-import { RecommendationsService } from './recommendations.service';
+import { Body, Controller, Post } from '@nestjs/common'
+import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto'
+import { RecommendationsService } from './recommendations.service'
 
 @Controller()
 export class RecommendationsController {
@@ -8,11 +8,11 @@ export class RecommendationsController {
 
   @Post('recommendations')
   recommend(@Body() dto: RecommendationDto) {
-    return this.recommendationsService.recommend(dto);
+    return this.recommendationsService.recommend(dto)
   }
 
   @Post('compare')
   compare(@Body() dto: CompareStationsDto) {
-    return this.recommendationsService.compare(dto);
+    return this.recommendationsService.compare(dto)
   }
 }

@@ -1,8 +1,8 @@
-import { Button } from '@mantine/core';
-import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react';
-import { formatPrice, hasKnownPrice, timeAgo } from '../lib';
-import type { ConnectorType, Station } from '../types';
-import { Modal } from './Modal';
+import { Button } from '@mantine/core'
+import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react'
+import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
+import type { ConnectorType, Station } from '../types'
+import { Modal } from './Modal'
 
 export function StationDetailsModal({
   station,
@@ -10,10 +10,10 @@ export function StationDetailsModal({
   onClose,
   onMonitor,
 }: {
-  station: Station;
-  connector: ConnectorType;
-  onClose: () => void;
-  onMonitor: () => void;
+  station: Station
+  connector: ConnectorType
+  onClose: () => void
+  onMonitor: () => void
 }) {
   return (
     <Modal title={station.name} subtitle={`${station.operator} · ${station.postalCode}`} onClose={onClose}>
@@ -68,5 +68,5 @@ export function StationDetailsModal({
         Monitor this {connector} charger
       </Button>
     </Modal>
-  );
+  )
 }

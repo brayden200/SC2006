@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { ActionIcon, Alert, Button, Checkbox, Loader, Paper, Select, Slider, TextInput } from '@mantine/core';
-import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react';
-import { api } from '../api';
-import { ComparisonModal } from '../components/ComparisonModal';
-import { MapPanel } from '../components/MapPanel';
-import { PredictionModal } from '../components/PredictionModal';
-import { StationCard } from '../components/StationCard';
-import { StationDetailsModal } from '../components/StationDetailsModal';
+import { useState } from 'react'
+import { ActionIcon, Alert, Button, Checkbox, Loader, Paper, Select, Slider, TextInput } from '@mantine/core'
+import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react'
+import { api } from '../api'
+import { ComparisonModal } from '../components/ComparisonModal'
+import { MapPanel } from '../components/MapPanel'
+import { PredictionModal } from '../components/PredictionModal'
+import { StationCard } from '../components/StationCard'
+import { StationDetailsModal } from '../components/StationDetailsModal'
 import type {
   ConnectorPreference,
   ConnectorType,
@@ -15,7 +15,7 @@ import type {
   RecommendationResponse,
   SearchResponse,
   Station,
-} from '../types';
+} from '../types'
 
 const weightSets = {
   Balanced: {
@@ -40,53 +40,53 @@ const weightSets = {
     priceWeight: 40,
     preferenceWeight: 5,
   },
-};
+}
 
 export function ExplorePage({
   navigate,
   notify,
 }: {
-  navigate: (page: Page) => void;
-  notify: (message: string) => void;
+  navigate: (page: Page) => void
+  notify: (message: string) => void
 }) {
-  const [locationQuery, setLocationQuery] = useState('');
-  const [connector, setConnector] = useState<ConnectorPreference>('Any');
-  const [appliedConnector, setAppliedConnector] = useState<ConnectorPreference>('Any');
-  const [radiusKm, setRadiusKm] = useState(8);
-  const [availableOnly, setAvailableOnly] = useState(true);
-  const [includeUnknown, setIncludeUnknown] = useState(false);
-  const [minPowerKw, setMinPowerKw] = useState(0);
-  const [maxPrice, setMaxPrice] = useState('');
-  const [operator, setOperator] = useState('');
-  const [priority, setPriority] = useState<keyof typeof weightSets>('Balanced');
-  const [energyKwh, setEnergyKwh] = useState(35);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
-  const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [error, setError] = useState('');
-  const [compareIds, setCompareIds] = useState<string[]>([]);
-  const [showComparison, setShowComparison] = useState(false);
-  const [details, setDetails] = useState<RankedStation | null>(null);
-  const [predicting, setPredicting] = useState<Station | null>(null);
-  const [mapSelectedId, setMapSelectedId] = useState<string>();
-  const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationQuery, setLocationQuery] = useState('')
+  const [connector, setConnector] = useState<ConnectorPreference>('Any')
+  const [appliedConnector, setAppliedConnector] = useState<ConnectorPreference>('Any')
+  const [radiusKm, setRadiusKm] = useState(8)
+  const [availableOnly, setAvailableOnly] = useState(true)
+  const [includeUnknown, setIncludeUnknown] = useState(false)
+  const [minPowerKw, setMinPowerKw] = useState(0)
+  const [maxPrice, setMaxPrice] = useState('')
+  const [operator, setOperator] = useState('')
+  const [priority, setPriority] = useState<keyof typeof weightSets>('Balanced')
+  const [energyKwh, setEnergyKwh] = useState(35)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [searchResult, setSearchResult] = useState<SearchResponse | null>(null)
+  const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [error, setError] = useState('')
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [showComparison, setShowComparison] = useState(false)
+  const [details, setDetails] = useState<RankedStation | null>(null)
+  const [predicting, setPredicting] = useState<Station | null>(null)
+  const [mapSelectedId, setMapSelectedId] = useState<string>()
+  const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [currentLocation, setCurrentLocation] = useState<{
-    latitude: number;
-    longitude: number;
-    accuracy: number;
-  } | null>(null);
+    latitude: number
+    longitude: number
+    accuracy: number
+  } | null>(null)
 
   const runSearch = async () => {
     if (!locationQuery.trim() && !searchCoords) {
-      setError('Enter an address or postal code, or use your current location.');
-      return;
+      setError('Enter an address or postal code, or use your current location.')
+      return
     }
-    const requestedConnector = connector;
-    setLoading(true);
-    setError('');
-    setCompareIds([]);
+    const requestedConnector = connector
+    setLoading(true)
+    setError('')
+    setCompareIds([])
     try {
       const search = await api.searchStations({
         query: locationQuery,
@@ -99,8 +99,8 @@ export function ExplorePage({
         minPowerKw: minPowerKw || undefined,
         maxPrice: maxPrice || undefined,
         operator: operator || undefined,
-      });
-      setSearchResult(search);
+      })
+      setSearchResult(search)
       const ranked = await api.recommend({
         latitude: search.location.latitude,
         longitude: search.location.longitude,
@@ -115,27 +115,27 @@ export function ExplorePage({
         operator: operator || undefined,
         preferredOperator: operator || undefined,
         ...weightSets[priority],
-      });
-      const allowed = new Set(search.stations.map((item) => item.id));
-      ranked.ranked = ranked.ranked.filter((item) => allowed.has(item.id));
-      ranked.recommended = ranked.ranked[0] ?? null;
-      ranked.alternatives = ranked.ranked.slice(1, 3);
-      setHasSearched(true);
-      setAppliedConnector(requestedConnector);
-      setRecommendation(ranked);
-      if (ranked.recommended) setMapSelectedId(ranked.recommended.id);
-      notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`);
+      })
+      const allowed = new Set(search.stations.map((item) => item.id))
+      ranked.ranked = ranked.ranked.filter((item) => allowed.has(item.id))
+      ranked.recommended = ranked.ranked[0] ?? null
+      ranked.alternatives = ranked.ranked.slice(1, 3)
+      setHasSearched(true)
+      setAppliedConnector(requestedConnector)
+      setRecommendation(ranked)
+      if (ranked.recommended) setMapSelectedId(ranked.recommended.id)
+      notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`)
     } catch (reason) {
-      setError((reason as Error).message);
+      setError((reason as Error).message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const useMyLocation = () => {
     if (!navigator.geolocation) {
-      setError('Location is unavailable. Enter an address or postal code instead.');
-      return;
+      setError('Location is unavailable. Enter an address or postal code instead.')
+      return
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -143,43 +143,43 @@ export function ExplorePage({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
-        };
-        setCurrentLocation(nextLocation);
-        setSearchCoords({ latitude: nextLocation.latitude, longitude: nextLocation.longitude });
-        setLocationQuery('My current location');
+        }
+        setCurrentLocation(nextLocation)
+        setSearchCoords({ latitude: nextLocation.latitude, longitude: nextLocation.longitude })
+        setLocationQuery('My current location')
         notify(
           `Current location found (about ${Math.round(nextLocation.accuracy)} m accuracy) — press Search to refresh`,
-        );
+        )
       },
       () => setError('Location permission was denied. Enter an address or Singapore postal code instead.'),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
-    );
-  };
+    )
+  }
 
-  const ranked = recommendation?.ranked ?? [];
-  const compared = ranked.filter((item) => compareIds.includes(item.id));
+  const ranked = recommendation?.ranked ?? []
+  const compared = ranked.filter((item) => compareIds.includes(item.id))
   const toggleCompare = (id: string) => {
-    if (compareIds.includes(id)) setCompareIds((items) => items.filter((item) => item !== id));
-    else if (compareIds.length < 4) setCompareIds((items) => [...items, id]);
-    else notify('You can compare up to four stations at once');
-  };
+    if (compareIds.includes(id)) setCompareIds((items) => items.filter((item) => item !== id))
+    else if (compareIds.length < 4) setCompareIds((items) => [...items, id])
+    else notify('You can compare up to four stations at once')
+  }
   const monitor = async (station: Station) => {
     const selectedConnector =
       station.selectedConnector ??
-      (appliedConnector === 'Any' ? station.connectors[0]?.type : appliedConnector);
+      (appliedConnector === 'Any' ? station.connectors[0]?.type : appliedConnector)
     if (!selectedConnector) {
-      notify('No compatible connector is available at this station');
-      return;
+      notify('No compatible connector is available at this station')
+      return
     }
     try {
-      await api.createMonitor(station.id, selectedConnector);
-      notify(`Monitoring ${station.name} (${selectedConnector}) for 90 minutes`);
-      setDetails(null);
-      navigate('monitoring');
+      await api.createMonitor(station.id, selectedConnector)
+      notify(`Monitoring ${station.name} (${selectedConnector}) for 90 minutes`)
+      setDetails(null)
+      navigate('monitoring')
     } catch (reason) {
-      notify((reason as Error).message);
+      notify((reason as Error).message)
     }
-  };
+  }
 
   return (
     <div className="page explore-page">
@@ -200,9 +200,9 @@ export function ExplorePage({
             label="Where do you need to charge?"
             value={locationQuery}
             onChange={(event) => {
-              setLocationQuery(event.currentTarget.value);
-              setSearchCoords(null);
-              setError('');
+              setLocationQuery(event.currentTarget.value)
+              setSearchCoords(null)
+              setError('')
             }}
             placeholder="Address or postal code"
             leftSection={<Search size={18} />}
@@ -387,8 +387,8 @@ export function ExplorePage({
                 connector={appliedConnector}
                 selectedId={mapSelectedId}
                 onSelect={(station) => {
-                  setMapSelectedId(station.id);
-                  setDetails(station);
+                  setMapSelectedId(station.id)
+                  setDetails(station)
                 }}
                 location={searchResult!.location}
                 currentLocation={currentLocation ?? undefined}
@@ -411,8 +411,8 @@ export function ExplorePage({
                 size="compact-sm"
                 key={item}
                 onClick={() => {
-                  if (item.includes('radius')) setRadiusKm(20);
-                  if (item.includes('unknown')) setIncludeUnknown(true);
+                  if (item.includes('radius')) setRadiusKm(20)
+                  if (item.includes('unknown')) setIncludeUnknown(true)
                 }}
               >
                 {item}
@@ -459,9 +459,9 @@ export function ExplorePage({
           location={searchResult!.location}
           onClose={() => setShowComparison(false)}
           onChoose={(station) => {
-            setShowComparison(false);
-            setDetails(station);
-            notify(`${station.name} selected`);
+            setShowComparison(false)
+            setDetails(station)
+            notify(`${station.name} selected`)
           }}
         />
       )}
@@ -475,5 +475,5 @@ export function ExplorePage({
       )}
       {predicting && <PredictionModal station={predicting} onClose={() => setPredicting(null)} />}
     </div>
-  );
+  )
 }
