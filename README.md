@@ -1,8 +1,6 @@
 # ChargeWise SG
 
-ChargeWise SG is an explainable EV-charger decision-support app for Singapore. It implements UC-01 through UC-05 and UC-07 from `ChargeWise_Use_Cases.md`. UC-06 (vehicle profiles and saved preferences) is intentionally excluded.
-
-The app uses a NestJS API and a responsive React/Vite client, both written in TypeScript. It runs without Docker. LTA DataMall supplies live charging points and availability, while OneMap supplies address geocoding and driving routes. The app no longer fabricates fallback stations: if live data has not been loaded, it reports the provider issue instead.
+The app uses a NestJS API and a responsive React/Vite client, both written in TypeScript. It runs without Docker. LTA DataMall supplies live charging points and availability, while OneMap supplies address geocoding and driving routes.
 
 ## Requirements
 
@@ -46,7 +44,7 @@ The Vite development server proxies `/api` to port 3000. To point the frontend e
 | UC-03 Compare options          | Select 2–4 stations, compare live availability, compatibility, speed, charging duration, cost, travel, hours and operator, with best/weakest highlights and explicit unknown values.                                 |
 | UC-04 Monitor charger          | 90-minute watchlist, backend 30-second checks, status timestamps, event history, expiry/stop controls, and an on-demand live refresh.                                                                                |
 | UC-05 Recommend alternative    | Re-ranks available compatible chargers from the user's current location, displays added travel time, accepts a replacement and continues monitoring.                                                                 |
-| UC-07 Charging sessions        | Records energy, cost, duration and official-status accuracy; lists user-entered history and calculates monthly spend, energy, rate and frequently used stations.                                                     |
+| UC-07 Charging sessions        | Queries backend stations as the user types, then records a validated station with energy added, total cost, and session date; calculates monthly spend, energy, and average rate.                                    |
 
 UC-06 is not present: there is no vehicle-profile or saved-preferences screen. Registered-user flows use the visible demo account, while connector and ranking priorities are chosen per search.
 
@@ -60,7 +58,6 @@ UC-06 is not present: there is no vehicle-profile or saved-preferences screen. R
 - Unknown prices and statuses stay unknown. They are not fabricated. Operating hours and amenities are omitted because the current LTA batch does not provide them.
 - An incompatible connector is removed before recommendation scoring.
 - Availability is always presented as a snapshot, never as a reservation or guarantee.
-- User-entered charging sessions are labeled `User submitted`.
 - Runtime records use in-memory storage and reset when the API restarts. A database can replace the service stores later without changing the client contract.
 
 ## Project structure

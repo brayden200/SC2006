@@ -97,8 +97,5 @@ export interface ChargingSession {
   startedAt: string
   energyKwh: number
   totalCost: number
-  durationMinutes: number
-  officialStatusAccurate?: boolean
-  note?: string
-  dataSource: string
+  createdAt: string
 }

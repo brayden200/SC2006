@@ -38,6 +38,9 @@ export const api = {
   getStation(id: string) {
     return request<Station>(`/stations/${id}`)
   },
+  searchStationOptions(query: string) {
+    return request<{ stations: StationOption[] }>(`/stations/options?query=${encodeURIComponent(query)}`)
+  },
   recommend(body: Record<string, unknown>) {
     return request<RecommendationResponse>('/recommendations', {
       method: 'POST',
@@ -104,6 +107,11 @@ export interface CompareOption {
   lastUpdated: string
   travelSource: 'OneMap' | 'Straight-line estimate'
 }
+export interface StationOption {
+  id: string
+  name: string
+  address: string
+}
 export interface CompareResponse {
   connector: ConnectorPreference
   energyKwh: number
@@ -126,6 +134,5 @@ export interface SessionsResponse {
     monthlyEnergyKwh: number
     monthlySessions: number
     averageCostPerKwh: number
-    frequentlyUsedStation: { name: string; visits: number } | null
   }
 }

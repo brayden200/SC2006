@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common'
 import { StationsService } from '../stations/stations.service'
 import { CreateSessionDto } from './dto/create-session.dto'
 
-export interface ChargingSession extends CreateSessionDto {
+export interface ChargingSession {
   id: string
+  stationId: string
   stationName: string
+  startedAt: string
+  energyKwh: number
+  totalCost: number
   createdAt: string
-  dataSource: 'User submitted'
 }
 
 @Injectable()
@@ -16,13 +19,16 @@ export class SessionsService {
   constructor(private readonly stationsService: StationsService) {}
 
   create(dto: CreateSessionDto) {
+    const now = new Date().toISOString()
     const station = this.stationsService.findById(dto.stationId)
     const session: ChargingSession = {
-      ...dto,
       id: `session-${Date.now()}`,
+      stationId: station.id,
       stationName: station.name,
-      createdAt: new Date().toISOString(),
-      dataSource: 'User submitted',
+      startedAt: dto.startedAt ?? now,
+      energyKwh: dto.energyKwh,
+      totalCost: dto.totalCost,
+      createdAt: now,
     }
     this.sessions = [session, ...this.sessions]
     return session
@@ -31,11 +37,6 @@ export class SessionsService {
   list() {
     const currentMonth = new Date().toISOString().slice(0, 7)
     const monthly = this.sessions.filter((item) => item.startedAt.startsWith(currentMonth))
-    const frequency = this.sessions.reduce<Record<string, number>>((acc, item) => {
-      acc[item.stationName] = (acc[item.stationName] ?? 0) + 1
-      return acc
-    }, {})
-    const favourite = Object.entries(frequency).sort((a, b) => b[1] - a[1])[0]
     return {
       sessions: this.sessions,
       summary: {
@@ -50,7 +51,6 @@ export class SessionsService {
               ).toFixed(2),
             )
           : 0,
-        frequentlyUsedStation: favourite ? { name: favourite[0], visits: favourite[1] } : null,
       },
     }
   }

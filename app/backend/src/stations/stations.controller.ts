@@ -11,6 +11,11 @@ export class StationsController {
     return this.stationsService.search(query)
   }
 
+  @Get('options')
+  options(@Query('query') query?: string) {
+    return this.stationsService.options(query)
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.stationsService.findById(id)

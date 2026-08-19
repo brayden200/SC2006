@@ -236,11 +236,12 @@ The final implementation should normalize values before combining them and allow
 
 **Main flow:**
 
-1. The user starts a new charging-session record or selects a recently visited station.
-2. The user enters energy added, total cost, and charging duration.
-3. The user may indicate whether the official availability status was accurate.
-4. The system saves the session.
-5. The system updates summaries such as monthly cost, energy added, and frequently used stations.
+1. The user starts a new charging-session record.
+2. As the user types a station name, address, or postal code, the system queries matching stations from the backend.
+3. The user selects a station; the system fills the current date and time by default.
+4. The user enters the energy added and total cost and may adjust the date.
+5. The backend validates the station and saves its authoritative name with the session.
+6. The system updates summaries such as monthly cost, energy added, and average cost per kWh.
 
 **Postconditions:** The session appears in the user's charging history.
 
