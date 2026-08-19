@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Loader, Switch } from '@mantine/core'
+import { Alert, Button, Loader } from '@mantine/core'
 import {
   AlertTriangle,
   BellRing,
-  CarFront,
-  Check,
   Clock3,
   MapPin,
   Radio,
@@ -23,9 +21,10 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
   const [monitors, setMonitors] = useState<Monitor[]>([])
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState<string>()
+  const [findingAlternatives, setFindingAlternatives] = useState<string>()
+  const [switchingTo, setSwitchingTo] = useState<string>()
   const [alternatives, setAlternatives] = useState<AlternativesResponse | null>(null)
   const [alternativeMonitor, setAlternativeMonitor] = useState<Monitor | null>(null)
-  const [drivingMode, setDrivingMode] = useState(false)
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true)
@@ -57,18 +56,41 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
     }
   }
   const findAlternatives = async (monitor: Monitor) => {
-    setChecking(monitor.id)
+    setFindingAlternatives(monitor.id)
+    setAlternatives(null)
+    setAlternativeMonitor(null)
     try {
-      setAlternatives(await api.getAlternatives(monitor.id, 1.3048, 103.8318))
+      if (!navigator.geolocation) {
+        throw new Error('Current location is unavailable in this browser.')
+      }
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          maximumAge: 30_000,
+          timeout: 15_000,
+        })
+      }).catch((reason: GeolocationPositionError) => {
+        if (reason.code === reason.PERMISSION_DENIED) {
+          throw new Error('Allow location access to find alternatives near you.')
+        }
+        throw new Error('Could not determine your current location. Please try again.')
+      })
+      const result = await api.getAlternatives(
+        monitor.id,
+        position.coords.latitude,
+        position.coords.longitude,
+      )
+      setAlternatives(result)
       setAlternativeMonitor(monitor)
     } catch (reason) {
       notify((reason as Error).message)
     } finally {
-      setChecking(undefined)
+      setFindingAlternatives(undefined)
     }
   }
   const accept = async (stationId: string) => {
     if (!alternativeMonitor) return
+    setSwitchingTo(stationId)
     try {
       const updated = await api.acceptAlternative(alternativeMonitor.id, stationId)
       setAlternatives(null)
@@ -77,6 +99,8 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
       notify(`Switched monitoring to ${updated.station.name}`)
     } catch (reason) {
       notify((reason as Error).message)
+    } finally {
+      setSwitchingTo(undefined)
     }
   }
   const stop = async (monitor: Monitor) => {
@@ -101,14 +125,6 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
           </h1>
           <p>We check your selected charger and flag changes before you arrive.</p>
         </div>
-        <Switch
-          className="driving-switch"
-          checked={drivingMode}
-          onChange={(event) => setDrivingMode(event.currentTarget.checked)}
-          label="Driving mode"
-          description="Simplified alerts"
-          thumbIcon={<CarFront size={11} />}
-        />
       </section>
 
       <Alert className="monitor-info" color="green" icon={<Radio size={17} />}>
@@ -208,6 +224,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                   <Button
                     variant="light"
                     loading={checking === monitor.id}
+                    disabled={findingAlternatives === monitor.id}
                     leftSection={<RefreshCw size={16} />}
                     onClick={() => void check(monitor)}
                   >
@@ -215,10 +232,11 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                   </Button>
                   <Button
                     disabled={checking === monitor.id}
+                    loading={findingAlternatives === monitor.id}
                     leftSection={<Route size={17} />}
                     onClick={() => void findAlternatives(monitor)}
                   >
-                    Find alternative
+                    Find alternatives near me
                   </Button>
                 </div>
               </article>
@@ -243,43 +261,19 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
 
       {alternatives && alternativeMonitor && (
         <Modal
-          title={drivingMode ? 'Safer charger available' : 'Alternative chargers'}
-          subtitle={drivingMode ? 'One-tap decision for driving mode' : alternatives.message}
+          title="Alternative chargers"
+          subtitle={alternatives.message}
           onClose={() => {
             setAlternatives(null)
             setAlternativeMonitor(null)
           }}
-          wide={!drivingMode}
+          wide
         >
           {alternatives.alternatives.length === 0 ? (
             <div className="empty-state compact">
               <Route size={30} />
               <h3>No available alternative</h3>
               <p>{alternatives.message}</p>
-            </div>
-          ) : drivingMode ? (
-            <div className="driving-alternative">
-              <CarFront size={36} />
-              <span>BEST ALTERNATIVE</span>
-              <h2>{alternatives.recommended!.name}</h2>
-              <p>
-                {alternatives.recommended!.travelMinutes} min away · +
-                {alternatives.recommended!.additionalTravelMinutes} min detour ·{' '}
-                {
-                  alternatives.recommended!.connectors.find(
-                    (item) => item.type === alternativeMonitor.connector,
-                  )?.available
-                }{' '}
-                available
-              </p>
-              <Button
-                fullWidth
-                leftSection={<Check size={18} />}
-                onClick={() => void accept(alternatives.recommended!.id)}
-              >
-                Switch and keep monitoring
-              </Button>
-              <small>Only interact when it is safe to do so.</small>
             </div>
           ) : (
             <div className="alternative-list">
@@ -311,7 +305,13 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                       </span>
                     </div>
                     <p className="alt-reason">{station.reasons[0]}</p>
-                    <Button onClick={() => void accept(station.id)}>Switch monitoring</Button>
+                    <Button
+                      loading={switchingTo === station.id}
+                      disabled={Boolean(switchingTo) && switchingTo !== station.id}
+                      onClick={() => void accept(station.id)}
+                    >
+                      Switch monitoring
+                    </Button>
                   </article>
                 )
               })}

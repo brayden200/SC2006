@@ -1180,13 +1180,6 @@ textarea:focus-visible {
   margin-bottom: 24px;
   font-size: 10px;
 }
-.driving-switch {
-  border: 1px solid #d4dcd6;
-  border-radius: 12px;
-  background: white;
-  padding: 10px 12px;
-  min-width: 185px;
-}
 .monitor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1422,34 +1415,6 @@ textarea:focus-visible {
   width: 100%;
   margin-top: 12px;
 }
-.driving-alternative {
-  text-align: center;
-}
-.driving-alternative > svg {
-  color: var(--green);
-}
-.driving-alternative > span {
-  display: block;
-  color: var(--green);
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 1px;
-  margin-top: 8px;
-}
-.driving-alternative h2 {
-  margin: 6px 0;
-}
-.driving-alternative p {
-  color: var(--muted);
-  font-size: 11px;
-}
-.driving-alternative button {
-  margin: 20px 0 8px;
-}
-.driving-alternative small {
-  color: #8d5f33;
-}
-
 .add-session {
   margin-bottom: 4px;
 }
