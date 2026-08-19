@@ -11,44 +11,7 @@ export interface ChargingSession extends CreateSessionDto {
 
 @Injectable()
 export class SessionsService {
-  private sessions: ChargingSession[] = [
-    {
-      id: 'session-seed-1',
-      stationId: 'cw-orchard-central',
-      stationName: 'Orchard Central',
-      startedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(),
-      energyKwh: 31.4,
-      totalCost: 19.47,
-      durationMinutes: 34,
-      officialStatusAccurate: true,
-      createdAt: new Date(Date.now() - 3 * 86_400_000).toISOString(),
-      dataSource: 'User submitted',
-    },
-    {
-      id: 'session-seed-2',
-      stationId: 'cw-plaza-singapura',
-      stationName: 'Plaza Singapura',
-      startedAt: new Date(Date.now() - 16 * 86_400_000).toISOString(),
-      energyKwh: 24.8,
-      totalCost: 13.64,
-      durationMinutes: 47,
-      officialStatusAccurate: false,
-      createdAt: new Date(Date.now() - 16 * 86_400_000).toISOString(),
-      dataSource: 'User submitted',
-    },
-    {
-      id: 'session-seed-3',
-      stationId: 'cw-marina-bay',
-      stationName: 'Marina Bay Financial Centre',
-      startedAt: new Date(Date.now() - 34 * 86_400_000).toISOString(),
-      energyKwh: 38.1,
-      totalCost: 22.1,
-      durationMinutes: 29,
-      officialStatusAccurate: true,
-      createdAt: new Date(Date.now() - 34 * 86_400_000).toISOString(),
-      dataSource: 'User submitted',
-    },
-  ];
+  private sessions: ChargingSession[] = [];
 
   constructor(private readonly stationsService: StationsService) {}
 

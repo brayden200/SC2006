@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActionIcon, Alert, Button, Checkbox, Loader, Paper, Select, Slider, TextInput } from '@mantine/core';
 import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '../api';
@@ -8,6 +8,7 @@ import { PredictionModal } from '../components/PredictionModal';
 import { StationCard } from '../components/StationCard';
 import { StationDetailsModal } from '../components/StationDetailsModal';
 import type {
+  ConnectorPreference,
   ConnectorType,
   Page,
   RankedStation,
@@ -48,9 +49,9 @@ export function ExplorePage({
   navigate: (page: Page) => void;
   notify: (message: string) => void;
 }) {
-  const [locationQuery, setLocationQuery] = useState('Orchard Road');
-  const [connector, setConnector] = useState<ConnectorType>('CCS2');
-  const [appliedConnector, setAppliedConnector] = useState<ConnectorType>('CCS2');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [connector, setConnector] = useState<ConnectorPreference>('Any');
+  const [appliedConnector, setAppliedConnector] = useState<ConnectorPreference>('Any');
   const [radiusKm, setRadiusKm] = useState(8);
   const [availableOnly, setAvailableOnly] = useState(true);
   const [includeUnknown, setIncludeUnknown] = useState(false);
@@ -62,11 +63,12 @@ export function ExplorePage({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
   const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState('');
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [showComparison, setShowComparison] = useState(false);
-  const [details, setDetails] = useState<Station | null>(null);
+  const [details, setDetails] = useState<RankedStation | null>(null);
   const [predicting, setPredicting] = useState<Station | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string>();
   const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -76,7 +78,11 @@ export function ExplorePage({
     accuracy: number;
   } | null>(null);
 
-  const runSearch = async (initial = false) => {
+  const runSearch = async () => {
+    if (!locationQuery.trim() && !searchCoords) {
+      setError('Enter an address or postal code, or use your current location.');
+      return;
+    }
     const requestedConnector = connector;
     setLoading(true);
     setError('');
@@ -87,7 +93,7 @@ export function ExplorePage({
         latitude: searchCoords?.latitude,
         longitude: searchCoords?.longitude,
         radiusKm,
-        connector: requestedConnector,
+        connector: requestedConnector === 'Any' ? undefined : requestedConnector,
         availableOnly,
         includeUnknown,
         minPowerKw: minPowerKw || undefined,
@@ -114,21 +120,17 @@ export function ExplorePage({
       ranked.ranked = ranked.ranked.filter((item) => allowed.has(item.id));
       ranked.recommended = ranked.ranked[0] ?? null;
       ranked.alternatives = ranked.ranked.slice(1, 3);
+      setHasSearched(true);
       setAppliedConnector(requestedConnector);
       setRecommendation(ranked);
       if (ranked.recommended) setMapSelectedId(ranked.recommended.id);
-      if (!initial)
-        notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`);
+      notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`);
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    void runSearch(true);
-  }, []);
 
   const useMyLocation = () => {
     if (!navigator.geolocation) {
@@ -162,9 +164,16 @@ export function ExplorePage({
     else notify('You can compare up to four stations at once');
   };
   const monitor = async (station: Station) => {
+    const selectedConnector =
+      station.selectedConnector ??
+      (appliedConnector === 'Any' ? station.connectors[0]?.type : appliedConnector);
+    if (!selectedConnector) {
+      notify('No compatible connector is available at this station');
+      return;
+    }
     try {
-      await api.createMonitor(station.id, appliedConnector);
-      notify(`Monitoring ${station.name} for 90 minutes`);
+      await api.createMonitor(station.id, selectedConnector);
+      notify(`Monitoring ${station.name} (${selectedConnector}) for 90 minutes`);
       setDetails(null);
       navigate('monitoring');
     } catch (reason) {
@@ -180,7 +189,7 @@ export function ExplorePage({
           <h1>
             Find your best charge, <em>not just the nearest.</em>
           </h1>
-          <p>Live-style availability, travel time, speed and price—ranked around what matters to you.</p>
+          <p>Live availability, travel time, speed and price—ranked around what matters to you.</p>
         </div>
       </section>
 
@@ -193,6 +202,7 @@ export function ExplorePage({
             onChange={(event) => {
               setLocationQuery(event.currentTarget.value);
               setSearchCoords(null);
+              setError('');
             }}
             placeholder="Address or postal code"
             leftSection={<Search size={18} />}
@@ -205,8 +215,13 @@ export function ExplorePage({
           <Select
             label="Connector"
             value={connector}
-            onChange={(value) => setConnector((value ?? 'CCS2') as ConnectorType)}
-            data={['CCS2', 'Type 2', 'CHAdeMO']}
+            onChange={(value) => setConnector((value ?? 'Any') as ConnectorPreference)}
+            data={[
+              { value: 'Any', label: 'Any connector' },
+              { value: 'CCS2', label: 'CCS2' },
+              { value: 'Type 2', label: 'Type 2' },
+              { value: 'CHAdeMO', label: 'CHAdeMO' },
+            ]}
             allowDeselect={false}
           />
           <Select
@@ -302,7 +317,7 @@ export function ExplorePage({
       {searchResult?.dataStatus.isCached ? (
         <Alert className="cache-banner" color="yellow" icon={<AlertTriangle size={16} />}>
           <span>
-            <b>Using cached demonstration data</b> · Updated{' '}
+            <b>Using the latest cached LTA snapshot</b> · Updated{' '}
             {new Date(searchResult.dataStatus.lastUpdated).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -314,8 +329,11 @@ export function ExplorePage({
         searchResult && (
           <Alert className="cache-banner" color="green">
             <span>
-              <b>Live LTA DataMall charging data</b> · Location and travel times use{' '}
-              {searchResult.dataStatus.oneMap.state === 'available' ? 'OneMap' : 'the local fallback'}.
+              <b>Live LTA DataMall charging data</b> · Travel times use{' '}
+              {searchResult.dataStatus.oneMap.state === 'available'
+                ? 'OneMap'
+                : 'straight-line distance estimates'}
+              .
             </span>
           </Alert>
         )
@@ -381,7 +399,7 @@ export function ExplorePage({
             </aside>
           </div>
         </>
-      ) : (
+      ) : hasSearched ? (
         <div className="empty-state">
           <Search size={34} />
           <h2>No compatible stations found</h2>
@@ -401,6 +419,12 @@ export function ExplorePage({
               </Button>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="empty-state">
+          <LocateFixed size={34} />
+          <h2>Choose where you want to charge</h2>
+          <p>Enter a Singapore address or postal code, or use your current location to begin.</p>
         </div>
       )}
 
@@ -444,7 +468,7 @@ export function ExplorePage({
       {details && (
         <StationDetailsModal
           station={details}
-          connector={appliedConnector}
+          connector={details.selectedConnector}
           onClose={() => setDetails(null)}
           onMonitor={() => void monitor(details)}
         />

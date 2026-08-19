@@ -24,11 +24,11 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    stationId: 'cw-orchard-central',
+    stationId: '',
     startedAt: toLocalInput(new Date()),
-    energyKwh: '32',
-    totalCost: '18.50',
-    durationMinutes: '38',
+    energyKwh: '',
+    totalCost: '',
+    durationMinutes: '',
     officialStatusAccurate: 'true',
     note: '',
   });
@@ -87,7 +87,12 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
           </h1>
           <p>Track charging activity, cost and the accuracy of official status data.</p>
         </div>
-        <Button className="add-session" leftSection={<Plus size={17} />} onClick={() => setFormOpen(true)}>
+        <Button
+          className="add-session"
+          leftSection={<Plus size={17} />}
+          onClick={() => setFormOpen(true)}
+          disabled={!loading && stations.length === 0}
+        >
           Record session
         </Button>
       </section>
@@ -145,50 +150,52 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
                 </div>
               </article>
             </div>
-            <section className="history-content">
-              <div className="session-chart card">
-                <div className="section-title">
-                  <div>
-                    <h2>Cost by session</h2>
-                    <p>Your latest charging records</p>
+            {data.sessions.length > 0 && (
+              <section className="history-content">
+                <div className="session-chart card">
+                  <div className="section-title">
+                    <div>
+                      <h2>Cost by session</h2>
+                      <p>Your latest charging records</p>
+                    </div>
+                    <span>
+                      <CalendarDays size={16} /> Recent activity
+                    </span>
                   </div>
-                  <span>
-                    <CalendarDays size={16} /> Recent activity
+                  <div className="bars">
+                    {data.sessions
+                      .slice(0, 8)
+                      .reverse()
+                      .map((session) => (
+                        <div className="bar-column" key={session.id}>
+                          <span className="bar-value">${session.totalCost.toFixed(0)}</span>
+                          <div
+                            className="bar"
+                            style={{ height: `${Math.max(12, (session.totalCost / maxCost) * 100)}%` }}
+                          />
+                          <small>
+                            {new Date(session.startedAt).toLocaleDateString([], {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </small>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+                <div className="impact-card">
+                  <span className="impact-icon">
+                    <Leaf size={22} />
                   </span>
+                  <small>CHARGING INSIGHT</small>
+                  <h2>{data.summary.monthlyEnergyKwh} kWh logged</h2>
+                  <p>Good records make future cost estimates and charger comparisons more useful.</p>
+                  <div>
+                    <CheckCircle2 size={16} /> User entries stay clearly marked
+                  </div>
                 </div>
-                <div className="bars">
-                  {data.sessions
-                    .slice(0, 8)
-                    .reverse()
-                    .map((session) => (
-                      <div className="bar-column" key={session.id}>
-                        <span className="bar-value">${session.totalCost.toFixed(0)}</span>
-                        <div
-                          className="bar"
-                          style={{ height: `${Math.max(12, (session.totalCost / maxCost) * 100)}%` }}
-                        />
-                        <small>
-                          {new Date(session.startedAt).toLocaleDateString([], {
-                            day: 'numeric',
-                            month: 'short',
-                          })}
-                        </small>
-                      </div>
-                    ))}
-                </div>
-              </div>
-              <div className="impact-card">
-                <span className="impact-icon">
-                  <Leaf size={22} />
-                </span>
-                <small>CHARGING INSIGHT</small>
-                <h2>{data.summary.monthlyEnergyKwh} kWh logged</h2>
-                <p>Good records make future cost estimates and charger comparisons more useful.</p>
-                <div>
-                  <CheckCircle2 size={16} /> User entries stay clearly marked
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
             <section className="session-list card">
               <div className="section-title">
                 <div>
@@ -196,42 +203,53 @@ export function HistoryPage({ notify }: { notify: (message: string) => void }) {
                   <p>{data.sessions.length} records · newest first</p>
                 </div>
               </div>
-              <div className="session-table">
-                <div className="session-row header">
-                  <span>Station</span>
-                  <span>Date</span>
-                  <span>Energy</span>
-                  <span>Duration</span>
-                  <span>Cost</span>
-                  <span>Status accuracy</span>
+              {data.sessions.length === 0 ? (
+                <div className="empty-state compact">
+                  <BatteryCharging size={30} />
+                  <h3>No charging sessions yet</h3>
+                  <p>Record your first completed charge to start building your history.</p>
+                  <Button leftSection={<Plus size={16} />} onClick={() => setFormOpen(true)}>
+                    Record first session
+                  </Button>
                 </div>
-                {data.sessions.map((session) => (
-                  <div className="session-row" key={session.id}>
-                    <span className="session-station">
-                      <i>
-                        <BatteryCharging size={17} />
-                      </i>
-                      <b>{session.stationName}</b>
-                      <small>User submitted</small>
-                    </span>
-                    <span>
-                      {new Date(session.startedAt).toLocaleDateString([], {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </span>
-                    <span>{session.energyKwh} kWh</span>
-                    <span>{session.durationMinutes} min</span>
-                    <span>
-                      <b>${session.totalCost.toFixed(2)}</b>
-                    </span>
-                    <span className={session.officialStatusAccurate ? 'accurate' : 'inaccurate'}>
-                      {session.officialStatusAccurate ? 'Accurate' : 'Not accurate'}
-                    </span>
+              ) : (
+                <div className="session-table">
+                  <div className="session-row header">
+                    <span>Station</span>
+                    <span>Date</span>
+                    <span>Energy</span>
+                    <span>Duration</span>
+                    <span>Cost</span>
+                    <span>Status accuracy</span>
                   </div>
-                ))}
-              </div>
+                  {data.sessions.map((session) => (
+                    <div className="session-row" key={session.id}>
+                      <span className="session-station">
+                        <i>
+                          <BatteryCharging size={17} />
+                        </i>
+                        <b>{session.stationName}</b>
+                        <small>User submitted</small>
+                      </span>
+                      <span>
+                        {new Date(session.startedAt).toLocaleDateString([], {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                      <span>{session.energyKwh} kWh</span>
+                      <span>{session.durationMinutes} min</span>
+                      <span>
+                        <b>${session.totalCost.toFixed(2)}</b>
+                      </span>
+                      <span className={session.officialStatusAccurate ? 'accurate' : 'inaccurate'}>
+                        {session.officialStatusAccurate ? 'Accurate' : 'Not accurate'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         )

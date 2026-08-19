@@ -23,7 +23,7 @@ export class MonitoringController {
 
   @Post(':id/check')
   check(@Param('id') id: string) {
-    return this.monitoringService.demoCheck(id);
+    return this.monitoringService.check(id);
   }
 
   @Get(':id/alternatives')

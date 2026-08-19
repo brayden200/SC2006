@@ -1,4 +1,5 @@
 export type ConnectorType = 'CCS2' | 'Type 2' | 'CHAdeMO';
+export type ConnectorPreference = 'Any' | ConnectorType;
 export type AvailabilityStatus = 'available' | 'busy' | 'offline' | 'unknown';
 
 export interface Connector {
@@ -19,7 +20,7 @@ export interface Station {
   operator: string;
   connectors: Connector[];
   pricePerKwh: number | null;
-  source: 'LTA DataMall' | 'Cached demo data';
+  source: 'LTA DataMall';
   lastUpdated: string;
 }
 
@@ -38,6 +39,7 @@ export interface ScoreBreakdown {
 }
 
 export interface RankedStation extends Station {
+  selectedConnector: ConnectorType;
   score: number;
   distanceKm: number;
   travelMinutes: number | null;

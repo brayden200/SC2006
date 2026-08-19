@@ -1,4 +1,5 @@
 export type ConnectorType = 'CCS2' | 'Type 2' | 'CHAdeMO';
+export type ConnectorPreference = 'Any' | ConnectorType;
 export type Page = 'explore' | 'monitoring' | 'history';
 
 export interface Connector {
@@ -22,9 +23,11 @@ export interface Station {
   source: string;
   lastUpdated: string;
   distanceKm?: number;
+  selectedConnector?: ConnectorType;
 }
 
 export interface RankedStation extends Station {
+  selectedConnector: ConnectorType;
   score: number;
   distanceKm: number;
   travelMinutes: number | null;

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConnectorType, RankedStation, Station } from '../common/types';
+import { ConnectorPreference, ConnectorType, RankedStation, Station } from '../common/types';
 import { StationsService } from '../stations/stations.service';
 import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto';
 import { OneMapService, RouteResult } from '../integrations/onemap.service';
@@ -16,7 +16,7 @@ export class RecommendationsService {
       latitude: dto.latitude,
       longitude: dto.longitude,
       radiusKm: dto.radiusKm ?? 8,
-      connector: dto.connector,
+      connector: dto.connector === 'Any' ? undefined : dto.connector,
       maxPrice: dto.maxPrice,
       minPowerKw: dto.minPowerKw,
       availableOnly: dto.availableOnly,
@@ -61,7 +61,7 @@ export class RecommendationsService {
     dto: RecommendationDto,
     route: RouteResult | null = null,
   ): RankedStation {
-    const connector = station.connectors.find((item) => item.type === dto.connector);
+    const connector = this.selectConnector(station, dto.connector, dto);
     if (!connector) throw new BadRequestException('Incompatible station was sent for ranking');
 
     const distanceKm =
@@ -110,9 +110,11 @@ export class RecommendationsService {
     if (pricePerKwh !== null && pricePerKwh <= 0.55)
       reasons.push(`Competitive rate of $${pricePerKwh.toFixed(2)}/kWh`);
     if (dto.preferredOperator === station.operator) reasons.push(`Matches your preferred operator`);
+    if (dto.connector === 'Any') reasons.unshift(`${connector.type} selected as the best connector`);
 
     return {
       ...structuredClone(station),
+      selectedConnector: connector.type,
       pricePerKwh,
       score: Math.round(score),
       distanceKm,
@@ -139,7 +141,7 @@ export class RecommendationsService {
     const origin = { latitude: dto.latitude ?? 1.3048, longitude: dto.longitude ?? 103.8318 };
     const options = await Promise.all(
       stations.map(async (station) => {
-        const connector = station.connectors.find((item) => item.type === dto.connector);
+        const connector = this.selectConnector(station, dto.connector);
         const powerKw = connector && connector.powerKw > 0 ? connector.powerKw : null;
         const pricePerKwh =
           station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null;
@@ -154,6 +156,7 @@ export class RecommendationsService {
           id: station.id,
           name: station.name,
           operator: station.operator,
+          connector: connector?.type ?? null,
           connectorCompatible: Boolean(connector),
           availability: connector?.available ?? null,
           availabilityStatus: connector?.status ?? 'unknown',
@@ -196,5 +199,37 @@ export class RecommendationsService {
     });
 
     return { connector: dto.connector, energyKwh: dto.energyKwh ?? 35, options, highlights };
+  }
+
+  private selectConnector(
+    station: Station,
+    preference: ConnectorPreference,
+    filters?: Pick<
+      RecommendationDto,
+      'availableOnly' | 'includeUnknown' | 'minPowerKw' | 'availabilityWeight' | 'speedWeight'
+    >,
+  ) {
+    if (preference !== 'Any') {
+      return station.connectors.find((connector) => connector.type === preference);
+    }
+
+    const eligible = station.connectors.filter(
+      (connector) =>
+        (!filters?.availableOnly || (connector.status === 'available' && (connector.available ?? 0) > 0)) &&
+        (filters?.includeUnknown || connector.status !== 'unknown') &&
+        (filters?.minPowerKw === undefined || connector.powerKw >= filters.minPowerKw),
+    );
+    const candidates = eligible.length ? eligible : station.connectors;
+    const availabilityWeight = filters?.availabilityWeight ?? 30;
+    const speedWeight = filters?.speedWeight ?? 20;
+    return [...candidates].sort((a, b) => {
+      const score = (connector: (typeof candidates)[number]) => {
+        const availability =
+          connector.available === null ? 35 : (connector.available / Math.max(connector.total, 1)) * 100;
+        const speed = Math.min(100, (connector.powerKw / 200) * 100);
+        return availability * availabilityWeight + speed * speedWeight;
+      };
+      return score(b) - score(a);
+    })[0];
   }
 }

@@ -3,7 +3,7 @@ import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet';
 import { Circle, CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { LocateFixed, Minus, Plus } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
-import type { ConnectorType, Station } from '../types';
+import type { ConnectorPreference, RankedStation } from '../types';
 
 interface MapLocation {
   latitude: number;
@@ -12,15 +12,15 @@ interface MapLocation {
 }
 
 interface MapPanelProps {
-  stations: Station[];
-  connector: ConnectorType;
+  stations: RankedStation[];
+  connector: ConnectorPreference;
   selectedId?: string;
-  onSelect: (station: Station) => void;
+  onSelect: (station: RankedStation) => void;
   location: MapLocation;
   currentLocation?: Pick<MapLocation, 'latitude' | 'longitude'> & { accuracy: number };
 }
 
-function MapViewport({ stations, location }: { stations: Station[]; location: MapLocation }) {
+function MapViewport({ stations, location }: { stations: RankedStation[]; location: MapLocation }) {
   const map = useMap();
 
   useEffect(() => {
@@ -78,7 +78,10 @@ export function MapPanel({
   const icons = useMemo(
     () =>
       stations.map((station, index) => {
-        const available = (station.connectors.find((item) => item.type === connector)?.available ?? 0) > 0;
+        const selectedConnector =
+          station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector);
+        const available =
+          (station.connectors.find((item) => item.type === selectedConnector)?.available ?? 0) > 0;
         return stationIcon(index + 1, available, selectedId === station.id);
       }),
     [connector, selectedId, stations],
@@ -132,7 +135,9 @@ export function MapPanel({
         )}
 
         {stations.map((station, index) => {
-          const stationConnector = station.connectors.find((item) => item.type === connector);
+          const selectedConnector =
+            station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector);
+          const stationConnector = station.connectors.find((item) => item.type === selectedConnector);
           const selected = selectedId === station.id;
           return (
             <Marker

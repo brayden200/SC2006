@@ -42,9 +42,11 @@ export default function App() {
   const providerLabel =
     providers?.ltaDataMall.state === 'available'
       ? `LTA DataMall live${providers.oneMap.state === 'available' ? ' · OneMap connected' : ''}`
-      : providers?.ltaDataMall.configured
-        ? 'Live APIs configured · fallback ready'
-        : 'Cached demo feed · add API keys for live data';
+      : providers?.ltaDataMall.state === 'error'
+        ? 'Live charging data temporarily unavailable'
+        : providers?.ltaDataMall.configured
+          ? 'Live charging data ready'
+          : 'Live charging data setup required';
 
   const navigate = (next: Page) => {
     setPage(next);

@@ -113,8 +113,8 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
 
       <Alert className="monitor-info" color="green" icon={<Radio size={17} />}>
         <span>
-          <b>Automatic checks every 30 seconds</b> while the API is running. This page refreshes every 15
-          seconds.
+          <b>Automatic monitoring every 30 seconds</b> using the latest provider snapshot. This page refreshes
+          every 15 seconds.
         </span>
       </Alert>
       {loading ? (
@@ -211,7 +211,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                     leftSection={<RefreshCw size={16} />}
                     onClick={() => void check(monitor)}
                   >
-                    Demo status change
+                    Check now
                   </Button>
                   <Button
                     disabled={checking === monitor.id}

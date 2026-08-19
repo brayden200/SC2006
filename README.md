@@ -1,8 +1,8 @@
 # ChargeWise SG
 
-ChargeWise SG is an explainable EV-charger decision-support prototype for Singapore. It implements UC-01 through UC-05, UC-07, and UC-08 from `ChargeWise_Use_Cases.md`. UC-06 (vehicle profiles and saved preferences) is intentionally excluded.
+ChargeWise SG is an explainable EV-charger decision-support app for Singapore. It implements UC-01 through UC-05, UC-07, and UC-08 from `ChargeWise_Use_Cases.md`. UC-06 (vehicle profiles and saved preferences) is intentionally excluded.
 
-The app uses a NestJS API and a responsive React/Vite client, both written in TypeScript. It runs without Docker. LTA DataMall supplies live charging points and availability, while OneMap supplies address geocoding and driving routes. A realistic Singapore charger dataset remains as a clearly labeled fallback so every flow is demonstrable during an outage or before keys are configured.
+The app uses a NestJS API and a responsive React/Vite client, both written in TypeScript. It runs without Docker. LTA DataMall supplies live charging points and availability, while OneMap supplies address geocoding and driving routes. The app no longer fabricates fallback stations: if live data has not been loaded, it reports the provider issue instead.
 
 ## Requirements
 
@@ -44,10 +44,10 @@ The Vite development server proxies `/api` to port 3000. To point the frontend e
 | UC-01 Find compatible stations | OneMap address/postal-code geocoding, LTA compatibility and availability data, radius, power, price and operator filters, map and list views, station details, no-result recovery suggestions, cached-data labeling. |
 | UC-02 Recommend best charger   | Normalized weighted scoring, OneMap driving time/distance, four ranking presets, top choice plus alternatives, score breakdown, reasons, cost/time estimates, missing-price weight redistribution.                   |
 | UC-03 Compare options          | Select 2–4 stations, compare live availability, compatibility, speed, charging duration, cost, travel, hours and operator, with best/weakest highlights and explicit unknown values.                                 |
-| UC-04 Monitor charger          | 90-minute watchlist, backend 30-second checks, status timestamps, event history, expiry/stop controls, and a deterministic demo-status change for presentations.                                                     |
+| UC-04 Monitor charger          | 90-minute watchlist, backend 30-second checks, status timestamps, event history, expiry/stop controls, and an on-demand live refresh.                                                                                |
 | UC-05 Recommend alternative    | Re-ranks available compatible chargers from the latest location, displays added travel time, accepts a replacement and continues monitoring, plus a simplified driving-mode view.                                    |
-| UC-07 Charging sessions        | Records energy, cost, duration and official-status accuracy; lists history and calculates monthly spend, energy, rate and frequently used stations.                                                                  |
-| UC-08 Availability prediction  | Similar-weekday/time-window probability with sample size, confidence indicator, method explanation and insufficient-data handling.                                                                                   |
+| UC-07 Charging sessions        | Records energy, cost, duration and official-status accuracy; lists user-entered history and calculates monthly spend, energy, rate and frequently used stations.                                                     |
+| UC-08 Availability prediction  | Uses collected live observations for similar-weekday/time-window probability, with sample size, confidence, method explanation and insufficient-data handling.                                                       |
 
 UC-06 is not present: there is no vehicle-profile or saved-preferences screen. Registered-user flows use the visible demo account, while connector and ranking priorities are chosen per search.
 
@@ -55,13 +55,14 @@ UC-06 is not present: there is no vehicle-profile or saved-preferences screen. R
 
 - The backend calls LTA DataMall `EVCBatch`, follows its short-lived JSON download link, normalizes the documented nested charging-point structure, and caches it for four minutes. `EVChargingPoints` postal-code lookup is also implemented.
 - OneMap Search geocodes user input and OneMap Routing supplies driving distance and duration. Responses are cached to respect API limits; route failures fall back to clearly labeled straight-line estimates.
+- The app does not ship seeded stations, sessions, or prediction history. Prediction evidence is collected from successful LTA snapshots during the current API runtime.
 - Every station response identifies its source and includes `lastUpdated`. `/api/integrations/status` reports provider health without exposing credentials.
 - `LTA_ACCOUNT_KEY`, `ONEMAP_TOKEN`, `ONEMAP_EMAIL`, and `ONEMAP_PASSWORD` are backend-only and are never referenced by frontend code.
 - Unknown prices and statuses stay unknown. They are not fabricated. Operating hours and amenities are omitted because the current LTA batch does not provide them.
 - An incompatible connector is removed before recommendation scoring.
 - Availability is always presented as a snapshot, never as a reservation or guarantee.
 - User-entered charging sessions are labeled `User submitted`.
-- Runtime records use in-memory storage and reset when the API restarts. This keeps the prototype self-contained; a database can replace the service stores later without changing the client contract.
+- Runtime records use in-memory storage and reset when the API restarts. A database can replace the service stores later without changing the client contract.
 
 ## Project structure
 

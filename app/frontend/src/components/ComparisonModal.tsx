@@ -3,7 +3,7 @@ import { Alert, Button, Loader } from '@mantine/core';
 import { Check, Minus, Trophy } from 'lucide-react';
 import { api, type CompareResponse } from '../api';
 import { formatPrice, hasKnownPrice } from '../lib';
-import type { ConnectorType, RankedStation } from '../types';
+import type { ConnectorPreference, RankedStation } from '../types';
 import { Modal } from './Modal';
 
 export function ComparisonModal({
@@ -15,7 +15,7 @@ export function ComparisonModal({
   onChoose,
 }: {
   stations: RankedStation[];
-  connector: ConnectorType;
+  connector: ConnectorPreference;
   energyKwh: number;
   location: { latitude: number; longitude: number };
   onClose: () => void;
@@ -41,6 +41,11 @@ export function ComparisonModal({
     label: string;
     value: (value: CompareResponse['options'][number]) => string;
   }> = [
+    {
+      key: 'connector',
+      label: 'Connector used',
+      value: (item) => item.connector ?? 'Unavailable',
+    },
     {
       key: 'availability',
       label: 'Available now',
@@ -78,7 +83,7 @@ export function ComparisonModal({
   return (
     <Modal
       title="Compare charging options"
-      subtitle={`${connector} · estimates based on ${energyKwh} kWh added`}
+      subtitle={`${connector === 'Any' ? 'Best connector per station' : connector} · estimates based on ${energyKwh} kWh added`}
       onClose={onClose}
       wide
     >

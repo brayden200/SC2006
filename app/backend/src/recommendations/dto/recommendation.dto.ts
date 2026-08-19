@@ -5,7 +5,7 @@ export class RecommendationDto {
   @Type(() => Number) @IsNumber() latitude!: number;
   @Type(() => Number) @IsNumber() longitude!: number;
   @IsOptional() @IsString() locationLabel?: string;
-  @IsIn(['CCS2', 'Type 2', 'CHAdeMO']) connector!: 'CCS2' | 'Type 2' | 'CHAdeMO';
+  @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO']) connector!: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO';
   @IsOptional() @Type(() => Number) @Min(1) @Max(50) radiusKm?: number = 8;
   @IsOptional() @Type(() => Number) @Min(1) @Max(150) energyKwh?: number = 35;
   @IsOptional() @Type(() => Number) @Min(0) maxPrice?: number;
@@ -23,7 +23,7 @@ export class RecommendationDto {
 
 export class CompareStationsDto {
   @IsArray() @IsString({ each: true }) stationIds!: string[];
-  @IsIn(['CCS2', 'Type 2', 'CHAdeMO']) connector!: 'CCS2' | 'Type 2' | 'CHAdeMO';
+  @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO']) connector!: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO';
   @IsOptional() @Type(() => Number) @Min(1) @Max(150) energyKwh?: number = 35;
   @IsOptional() @Type(() => Number) @IsNumber() latitude?: number = 1.3048;
   @IsOptional() @Type(() => Number) @IsNumber() longitude?: number = 103.8318;

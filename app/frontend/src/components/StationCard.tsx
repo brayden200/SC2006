@@ -1,11 +1,11 @@
 import { Button } from '@mantine/core';
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react';
 import { formatPrice, hasKnownPrice, timeAgo } from '../lib';
-import type { ConnectorType, RankedStation } from '../types';
+import type { ConnectorPreference, RankedStation } from '../types';
 
 interface Props {
   station: RankedStation;
-  connector: ConnectorType;
+  connector: ConnectorPreference;
   rank: number;
   best?: boolean;
   compared: boolean;
@@ -28,7 +28,9 @@ export function StationCard({
   onPredict,
   onHover,
 }: Props) {
-  const plug = station.connectors.find((item) => item.type === connector);
+  const selectedConnector =
+    station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector);
+  const plug = station.connectors.find((item) => item.type === selectedConnector);
   if (!plug) return null;
   const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0;
   return (

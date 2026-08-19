@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ConnectorType, LocationInput, Station } from '../common/types';
-import { KNOWN_LOCATIONS, STATIONS } from './station-data';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { LocationInput, Station } from '../common/types';
 import { SearchStationsDto } from './dto/search-stations.dto';
 import { LtaDataMallService } from '../integrations/lta-datamall.service';
 import { OneMapService } from '../integrations/onemap.service';
@@ -21,9 +25,17 @@ export interface StationSearchResult {
   suggestions: string[];
 }
 
+export interface AvailabilityObservation {
+  stationId: string;
+  timestamp: Date;
+  available: boolean;
+}
+
 @Injectable()
 export class StationsService {
-  private stations: Station[] = structuredClone(STATIONS);
+  private stations: Station[] = [];
+  private readonly availabilityObservations: AvailabilityObservation[] = [];
+  private lastObservedFetch: string | null = null;
   private fallbackReason: string | null = null;
 
   constructor(
@@ -33,6 +45,12 @@ export class StationsService {
 
   getAll(): Station[] {
     return structuredClone(this.stations);
+  }
+
+  getAvailabilityObservations(stationId: string): AvailabilityObservation[] {
+    return this.availabilityObservations
+      .filter((item) => item.stationId === stationId)
+      .map((item) => ({ ...item, timestamp: new Date(item.timestamp) }));
   }
 
   findById(id: string): Station {
@@ -46,41 +64,49 @@ export class StationsService {
       return { latitude, longitude, label: query || 'Selected location' };
     }
 
-    if (query?.trim() && this.oneMap.isConfigured()) {
-      try {
-        const result = await this.oneMap.searchAddress(query);
-        if (result) return result;
-      } catch {
-        // Continue with the local geocoding fallback so search remains available.
+    if (query?.trim()) {
+      let providerError: unknown = null;
+      if (this.oneMap.isConfigured()) {
+        try {
+          const result = await this.oneMap.searchAddress(query);
+          if (result) return result;
+        } catch (error) {
+          providerError = error;
+        }
       }
+
+      const liveMatch = this.resolveFromLiveStations(query);
+      if (liveMatch) return liveMatch;
+
+      if (providerError) {
+        throw new ServiceUnavailableException(
+          providerError instanceof Error ? providerError.message : 'OneMap address search is unavailable.',
+        );
+      }
+      if (!this.oneMap.isConfigured()) {
+        throw new ServiceUnavailableException(
+          'Address search is unavailable. Configure OneMap or use your current location.',
+        );
+      }
+      throw new BadRequestException(`No Singapore location found for "${query.trim()}"`);
     }
 
-    const normalised = query?.trim().toLowerCase() ?? 'orchard';
-    const exact = KNOWN_LOCATIONS[normalised];
-    if (exact) return exact;
-
-    const key = Object.keys(KNOWN_LOCATIONS).find((candidate) => normalised.includes(candidate));
-    if (key) return KNOWN_LOCATIONS[key];
-
-    const station = this.stations.find((item) =>
-      `${item.name} ${item.address} ${item.postalCode}`.toLowerCase().includes(normalised),
-    );
-    if (station) {
-      return { latitude: station.latitude, longitude: station.longitude, label: query };
-    }
-
-    return KNOWN_LOCATIONS.singapore;
+    return { latitude: 1.2903, longitude: 103.8519, label: 'Singapore' };
   }
 
   async search(dto: SearchStationsDto): Promise<StationSearchResult> {
     await this.refreshFromProvider();
+    if (!this.stations.length) {
+      throw new ServiceUnavailableException(
+        this.fallbackReason ?? 'Live charging-station data is currently unavailable.',
+      );
+    }
     const location = await this.resolveLocation(dto.query, dto.latitude, dto.longitude);
     const radius = dto.radiusKm ?? 8;
     let stations = this.stations
       .map((station) => ({ ...structuredClone(station), distanceKm: this.distanceKm(location, station) }))
       .filter((station) => station.distanceKm <= radius);
-
-    if (dto.connector) {
+    if (dto.connector && dto.connector !== 'Any') {
       stations = stations.filter((station) =>
         station.connectors.some((connector) => connector.type === dto.connector),
       );
@@ -89,7 +115,8 @@ export class StationsService {
       stations = stations.filter((station) =>
         station.connectors.some(
           (connector) =>
-            (!dto.connector || connector.type === dto.connector) && connector.powerKw >= dto.minPowerKw!,
+            (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
+            connector.powerKw >= dto.minPowerKw!,
         ),
       );
     }
@@ -97,7 +124,7 @@ export class StationsService {
       stations = stations.filter((station) =>
         station.connectors.some(
           (connector) =>
-            (!dto.connector || connector.type === dto.connector) &&
+            (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
             (connector.available ?? 0) > 0 &&
             connector.status === 'available',
         ),
@@ -107,7 +134,8 @@ export class StationsService {
       stations = stations.filter((station) =>
         station.connectors.some(
           (connector) =>
-            (!dto.connector || connector.type === dto.connector) && connector.status !== 'unknown',
+            (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
+            connector.status !== 'unknown',
         ),
       );
     }
@@ -137,11 +165,8 @@ export class StationsService {
       totalMatches,
       location,
       dataStatus: {
-        source: this.stations[0]?.source ?? 'Cached demo data',
-        isCached:
-          this.stations[0]?.source !== 'LTA DataMall' ||
-          this.lta.status().state === 'error' ||
-          Boolean(this.fallbackReason),
+        source: this.stations[0].source,
+        isCached: this.lta.status().state === 'error' || Boolean(this.fallbackReason),
         lastUpdated,
         ltaDataMall: this.lta.status(),
         oneMap: this.oneMap.status(),
@@ -156,35 +181,24 @@ export class StationsService {
 
   async refreshFromProvider(force = false) {
     if (!this.lta.isConfigured()) {
-      this.fallbackReason = 'LTA_ACCOUNT_KEY is not configured; using bundled cached data.';
+      this.fallbackReason = 'Live charging data is not configured.';
       return false;
     }
     try {
       const live = await this.lta.getAllStations(force);
-      if (live.length) this.stations = live;
+      if (live.length) {
+        this.stations = live;
+        this.recordAvailabilitySnapshot(live);
+      }
       this.fallbackReason =
         this.lta.status().state === 'error'
-          ? `${this.lta.status().lastError ?? 'LTA DataMall is unavailable'}; using the most recent LTA cache.`
+          ? `${this.lta.status().lastError ?? 'LTA DataMall is unavailable'}; showing the most recent live snapshot.`
           : null;
-      return true;
+      return this.lta.status().state !== 'error';
     } catch (error) {
-      this.fallbackReason =
-        error instanceof Error
-          ? `${error.message}; using the most recent cache.`
-          : 'LTA DataMall unavailable; using the most recent cache.';
+      this.fallbackReason = error instanceof Error ? error.message : 'LTA DataMall is unavailable.';
       return false;
     }
-  }
-
-  setConnectorAvailability(stationId: string, connectorType: ConnectorType, available: number | null) {
-    const station = this.stations.find((item) => item.id === stationId);
-    if (!station) throw new NotFoundException(`Station ${stationId} was not found`);
-    const connector = station.connectors.find((item) => item.type === connectorType);
-    if (!connector) throw new NotFoundException(`Connector ${connectorType} was not found`);
-    connector.available = available;
-    connector.status = available === null ? 'unknown' : available > 0 ? 'available' : 'busy';
-    station.lastUpdated = new Date().toISOString();
-    return structuredClone(station);
   }
 
   distanceKm(a: Pick<LocationInput, 'latitude' | 'longitude'>, b: Pick<Station, 'latitude' | 'longitude'>) {
@@ -203,5 +217,39 @@ export class StationsService {
       .toLowerCase()
       .replace(/\b(private|pte|limited|ltd)\b\.?/g, '')
       .replace(/[^a-z0-9+]/g, '');
+  }
+
+  private resolveFromLiveStations(query: string): LocationInput | null {
+    const normalized = query.trim().toLowerCase();
+    if (normalized === 'singapore') {
+      return { latitude: 1.2903, longitude: 103.8519, label: 'Singapore' };
+    }
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    const matches = this.stations.filter((station) => {
+      const searchable = `${station.name} ${station.address} ${station.postalCode}`.toLowerCase();
+      return tokens.every((token) => searchable.includes(token));
+    });
+    if (!matches.length) return null;
+    return {
+      latitude: matches.reduce((sum, station) => sum + station.latitude, 0) / matches.length,
+      longitude: matches.reduce((sum, station) => sum + station.longitude, 0) / matches.length,
+      label: query.trim(),
+    };
+  }
+
+  private recordAvailabilitySnapshot(stations: Station[]) {
+    const fetchedAt = this.lta.status().lastSuccessfulFetch;
+    if (!fetchedAt || fetchedAt === this.lastObservedFetch) return;
+    const timestamp = new Date(fetchedAt);
+    stations.forEach((station) => {
+      const knownConnectors = station.connectors.filter((connector) => connector.available !== null);
+      if (!knownConnectors.length) return;
+      this.availabilityObservations.push({
+        stationId: station.id,
+        timestamp,
+        available: knownConnectors.some((connector) => (connector.available ?? 0) > 0),
+      });
+    });
+    this.lastObservedFetch = fetchedAt;
   }
 }

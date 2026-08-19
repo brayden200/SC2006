@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { ConnectorType } from '../common/types';
 import { RecommendationsService } from '../recommendations/recommendations.service';
@@ -71,13 +76,13 @@ export class MonitoringService {
     return this.enrich(monitor);
   }
 
-  demoCheck(id: string) {
+  async check(id: string) {
     const monitor = this.find(id);
     if (monitor.status !== 'active') throw new BadRequestException('This monitor is no longer active');
-    const station = this.stationsService.findById(monitor.stationId);
-    const connector = station.connectors.find((item) => item.type === monitor.connector)!;
-    const nextAvailability = (connector.available ?? 0) > 0 ? 0 : Math.min(2, connector.total);
-    this.stationsService.setConnectorAvailability(station.id, monitor.connector, nextAvailability);
+    const refreshed = await this.stationsService.refreshFromProvider(true);
+    if (!refreshed) {
+      throw new ServiceUnavailableException('Could not refresh live availability. Please try again shortly.');
+    }
     return this.checkOne(monitor);
   }
 
@@ -134,8 +139,9 @@ export class MonitoringService {
 
   @Interval(30_000)
   async checkActiveMonitors() {
-    await this.stationsService.refreshFromProvider();
     this.expireMonitors();
+    const refreshed = await this.stationsService.refreshFromProvider();
+    if (!refreshed) return;
     this.monitors.filter((item) => item.status === 'active').forEach((item) => this.checkOne(item));
   }
 

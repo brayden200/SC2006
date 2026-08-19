@@ -1,4 +1,5 @@
 import type {
+  ConnectorPreference,
   ConnectorType,
   IntegrationProviderStatus,
   Monitor,
@@ -45,7 +46,7 @@ export const api = {
   },
   compare(body: {
     stationIds: string[];
-    connector: ConnectorType;
+    connector: ConnectorPreference;
     energyKwh: number;
     latitude: number;
     longitude: number;
@@ -93,6 +94,7 @@ export interface CompareOption {
   id: string;
   name: string;
   operator: string;
+  connector: ConnectorType | null;
   connectorCompatible: boolean;
   availability: number | null;
   availabilityStatus: string;
@@ -106,7 +108,7 @@ export interface CompareOption {
   travelSource: 'OneMap' | 'Straight-line estimate';
 }
 export interface CompareResponse {
-  connector: ConnectorType;
+  connector: ConnectorPreference;
   energyKwh: number;
   options: CompareOption[];
   highlights: Record<string, { best: string[]; weakest: string[] }>;
