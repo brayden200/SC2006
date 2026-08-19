@@ -12,7 +12,6 @@ interface Props {
   onCompare: () => void
   onDetails: () => void
   onMonitor: () => void
-  onPredict: () => void
   onHover: () => void
 }
 
@@ -25,7 +24,6 @@ export function StationCard({
   onCompare,
   onDetails,
   onMonitor,
-  onPredict,
   onHover,
 }: Props) {
   const selectedConnector =
@@ -108,9 +106,6 @@ export function StationCard({
           onClick={onCompare}
         >
           {compared ? 'Selected' : 'Compare'}
-        </Button>
-        <Button variant="subtle" size="xs" onClick={onPredict}>
-          Predict availability
         </Button>
         <Button variant="subtle" size="xs" rightSection={<ChevronRight size={15} />} onClick={onDetails}>
           Details

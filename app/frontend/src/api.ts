@@ -79,9 +79,6 @@ export const api = {
       body: JSON.stringify({ stationId }),
     })
   },
-  getPrediction(stationId: string, arrivalTime: string) {
-    return request<Prediction>(`/predictions/${stationId}?arrivalTime=${encodeURIComponent(arrivalTime)}`)
-  },
   getSessions() {
     return request<SessionsResponse>('/sessions')
   },
@@ -121,17 +118,6 @@ export interface AlternativesResponse {
 }
 interface RankedStationWithDetour extends RankedStation {
   additionalTravelMinutes: number
-}
-export interface Prediction {
-  stationId: string
-  stationName?: string
-  arrivalTime?: string
-  status: string
-  probability?: number
-  sampleSize: number
-  confidence?: string
-  methodology?: string
-  message: string
 }
 export interface SessionsResponse {
   sessions: import('./types').ChargingSession[]

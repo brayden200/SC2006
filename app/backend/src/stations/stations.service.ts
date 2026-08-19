@@ -25,17 +25,9 @@ export interface StationSearchResult {
   suggestions: string[]
 }
 
-export interface AvailabilityObservation {
-  stationId: string
-  timestamp: Date
-  available: boolean
-}
-
 @Injectable()
 export class StationsService {
   private stations: Station[] = []
-  private readonly availabilityObservations: AvailabilityObservation[] = []
-  private lastObservedFetch: string | null = null
   private fallbackReason: string | null = null
 
   constructor(
@@ -45,12 +37,6 @@ export class StationsService {
 
   getAll(): Station[] {
     return structuredClone(this.stations)
-  }
-
-  getAvailabilityObservations(stationId: string): AvailabilityObservation[] {
-    return this.availabilityObservations
-      .filter((item) => item.stationId === stationId)
-      .map((item) => ({ ...item, timestamp: new Date(item.timestamp) }))
   }
 
   findById(id: string): Station {
@@ -188,7 +174,6 @@ export class StationsService {
       const live = await this.lta.getAllStations(force)
       if (live.length) {
         this.stations = live
-        this.recordAvailabilitySnapshot(live)
       }
       this.fallbackReason =
         this.lta.status().state === 'error'
@@ -235,21 +220,5 @@ export class StationsService {
       longitude: matches.reduce((sum, station) => sum + station.longitude, 0) / matches.length,
       label: query.trim(),
     }
-  }
-
-  private recordAvailabilitySnapshot(stations: Station[]) {
-    const fetchedAt = this.lta.status().lastSuccessfulFetch
-    if (!fetchedAt || fetchedAt === this.lastObservedFetch) return
-    const timestamp = new Date(fetchedAt)
-    stations.forEach((station) => {
-      const knownConnectors = station.connectors.filter((connector) => connector.available !== null)
-      if (!knownConnectors.length) return
-      this.availabilityObservations.push({
-        stationId: station.id,
-        timestamp,
-        available: knownConnectors.some((connector) => (connector.available ?? 0) > 0),
-      })
-    })
-    this.lastObservedFetch = fetchedAt
   }
 }

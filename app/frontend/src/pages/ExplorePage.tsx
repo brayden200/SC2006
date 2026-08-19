@@ -4,7 +4,6 @@ import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X }
 import { api } from '../api'
 import { ComparisonModal } from '../components/ComparisonModal'
 import { MapPanel } from '../components/MapPanel'
-import { PredictionModal } from '../components/PredictionModal'
 import { StationCard } from '../components/StationCard'
 import { StationDetailsModal } from '../components/StationDetailsModal'
 import type {
@@ -69,7 +68,6 @@ export function ExplorePage({
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [showComparison, setShowComparison] = useState(false)
   const [details, setDetails] = useState<RankedStation | null>(null)
-  const [predicting, setPredicting] = useState<Station | null>(null)
   const [mapSelectedId, setMapSelectedId] = useState<string>()
   const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [currentLocation, setCurrentLocation] = useState<{
@@ -376,7 +374,6 @@ export function ExplorePage({
                   onCompare={() => toggleCompare(station.id)}
                   onDetails={() => setDetails(station)}
                   onMonitor={() => void monitor(station)}
-                  onPredict={() => setPredicting(station)}
                   onHover={() => setMapSelectedId(station.id)}
                 />
               ))}
@@ -473,7 +470,6 @@ export function ExplorePage({
           onMonitor={() => void monitor(details)}
         />
       )}
-      {predicting && <PredictionModal station={predicting} onClose={() => setPredicting(null)} />}
     </div>
   )
 }

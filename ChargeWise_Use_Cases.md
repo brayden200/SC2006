@@ -29,7 +29,6 @@ The application is intended to be a decision-support system rather than a simple
 | UC-05 | Recommend an alternative charger       | Registered user | Must have   |
 | UC-06 | Manage vehicle profile and preferences | Registered user | Must have   |
 | UC-07 | Record and review charging sessions    | Registered user | Should have |
-| UC-08 | Predict charger availability           | Registered user | Could have  |
 
 ## 4. Detailed Use Cases
 
@@ -112,7 +111,7 @@ The final implementation should normalize values before combining them and allow
 
 - **A1 - Price missing:** The system excludes price from the score and redistributes its weight.
 - **A2 - Route service unavailable:** The system uses straight-line distance and marks the travel time as unavailable.
-- **A3 - All matching chargers occupied:** The system ranks them using predicted availability or suggests a larger search area.
+- **A3 - All matching chargers occupied:** The system suggests a larger search area or allowing stations with unknown status.
 
 **Postconditions:** The driver has a ranked list and can understand why the top charger was recommended.
 
@@ -246,34 +245,6 @@ The final implementation should normalize values before combining them and allow
 **Postconditions:** The session appears in the user's charging history.
 
 ---
-
-### UC-08: Predict Charger Availability
-
-**Primary actor:** Registered user
-
-**Goal:** Estimate the likelihood that a charger will be available at a future time.
-
-**Preconditions:** The system has collected sufficient historical availability snapshots for the selected station and time period.
-
-**Main flow:**
-
-1. The user selects a station and intended arrival time.
-2. The system retrieves historical observations for similar weekdays and times.
-3. The system calculates an availability probability.
-4. The system displays the prediction, sample size, and confidence indicator.
-5. The prediction may be included in the recommendation score.
-
-**Initial prediction model:**
-
-```text
-Availability probability =
-available observations for the weekday and time window
-/ total observations for the weekday and time window
-```
-
-**Alternative flow:** If there is insufficient history, the system displays "Not enough data" and does not generate a prediction.
-
-**Postconditions:** The user sees a prediction or a clear explanation of why one cannot be produced.
 
 ## 5. External Data Requirements
 
