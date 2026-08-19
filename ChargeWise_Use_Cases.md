@@ -1,279 +1,351 @@
-# ChargeWise SG Use Cases
+# ChargeWise SG - Implemented Use Cases
 
-## 1. System Overview
+## 1. Scope
 
-**Project title:** ChargeWise SG: A Context-Aware EV Charging Recommendation and Availability Monitoring System
+This document describes only user-facing use cases that are implemented in the current React frontend and NestJS backend. The existing use-case IDs are retained so that they remain consistent with the README and codebase.
 
-ChargeWise SG helps electric-vehicle drivers select a suitable charging station based on live availability, connector compatibility, travel time, charging speed, price, and personal preferences. It can monitor a selected charger and recommend an alternative when conditions change.
-
-The application is intended to be a decision-support system rather than a simple map or data dashboard.
+The current application has no authentication, account management, saved vehicle profile, saved preferences, external navigation, charger reservation, or push-notification feature. Runtime monitoring records and charging-session records are stored in memory and are cleared when the backend restarts.
 
 ## 2. Actors
 
-| Actor                | Description                                                                      |
-| -------------------- | -------------------------------------------------------------------------------- |
-| EV driver            | Searches for, compares, selects, and navigates to charging stations.             |
-| Registered user      | An EV driver with saved vehicles, preferences, watchlists, and charging history. |
-| LTA DataMall         | Supplies charging-station details and availability data.                         |
-| OneMap               | Supplies address search, geocoding, and route information.                       |
-| System administrator | Monitors API operation, cached data, and system health.                          |
+| Actor | Description |
+| --- | --- |
+| EV driver | Searches for, evaluates, compares, monitors, and records activity at EV charging stations. |
+| LTA DataMall | Secondary actor that supplies charging-station and availability data to the backend. |
+| OneMap | Secondary actor that supplies Singapore address search and driving-route data to the backend. |
+| Browser location service | Secondary actor that supplies the driver's current coordinates after permission is granted. |
 
 ## 3. Use-Case Summary
 
-| ID    | Use case                               | Primary actor   | Priority    |
-| ----- | -------------------------------------- | --------------- | ----------- |
-| UC-01 | Find compatible charging stations      | EV driver       | Must have   |
-| UC-02 | Recommend the best charger             | EV driver       | Must have   |
-| UC-03 | Compare charging options               | EV driver       | Must have   |
-| UC-04 | Monitor a selected charger             | Registered user | Must have   |
-| UC-05 | Recommend an alternative charger       | Registered user | Must have   |
-| UC-06 | Manage vehicle profile and preferences | Registered user | Must have   |
-| UC-07 | Record and review charging sessions    | Registered user | Should have |
+| ID | Use case | Primary actor | Priority |
+| --- | --- | --- | --- |
+| UC-01 | Find compatible charging stations | EV driver | High |
+| UC-02 | Receive a ranked charger recommendation | EV driver | High |
+| UC-03 | Compare charging options | EV driver | High |
+| UC-04 | Monitor charger availability | EV driver | High |
+| UC-05 | Find and accept an alternative charger | EV driver | High |
+| UC-06 | Record and review charging sessions | EV driver | Medium |
 
-## 4. Detailed Use Cases
+## 4. Use-Case Descriptions
 
 ### UC-01: Find Compatible Charging Stations
 
-**Primary actor:** EV driver
+**Actor:** EV driver
 
-**Goal:** Find charging stations that are suitable for the user's vehicle and current needs.
+**Description:** Allows an EV driver to search for charging stations near a Singapore address, postal code, or current location and filter the results to match the driver's immediate charging requirements.
 
 **Preconditions:**
 
-- The application is running.
-- Charging-station data is available from LTA DataMall or a recent cache.
+1. The application is running.
+2. The backend has retrieved at least one charging station from LTA DataMall.
+3. OneMap is configured when the driver searches by address or postal code, unless the query matches a station already present in the live station data.
 
-**Trigger:** The driver chooses to search for a charger.
+**Postconditions:** Matching stations are displayed in a ranked list and on an interactive map, or the system displays a no-results message with recovery suggestions.
 
-**Main flow:**
+**Priority:** High
 
-1. The driver provides a current location, destination, or postal code.
-2. The driver selects a saved vehicle or specifies a connector type.
-3. The system retrieves charging stations near the requested location.
-4. The system removes incompatible stations.
-5. The system applies optional filters such as availability, distance, charging speed, operator, operating hours, and price.
-6. The system displays the matching stations on a map and in a list.
-7. The driver selects a station to view its details.
+**Frequency of use:** High
+
+**Flow of events:**
+
+1. The system displays a location field, connector selector, ranking-priority selector, and search filters.
+2. The driver enters a Singapore address or postal code.
+3. The driver optionally selects a connector type: CCS2, Type 2, CHAdeMO, or any connector.
+4. The driver optionally configures the following implemented filters:
+   - search radius from 2 km to 25 km;
+   - available chargers only;
+   - include stations whose availability is unknown;
+   - minimum charging power, including the 100+ kW quick filter;
+   - maximum known price per kWh;
+   - operator; and
+   - intended energy to add, which is used for estimates.
+5. The driver selects **Search**.
+6. The backend resolves the search location and retrieves the current LTA charging-station snapshot.
+7. The backend removes stations outside the radius and stations that do not satisfy the selected filters.
+8. The system displays the matching stations in a list and as selectable map markers.
+9. For each displayed station, the system shows its selected connector, distance, availability, charging power, travel estimate, price when known, estimated cost and charging time when calculable, recommendation score, and data-update time.
+10. The driver may select **View details** on a station card or select a map marker to view the station's address, operator, postal code, connector details, price, data source, and last-update time.
 
 **Alternative flows:**
 
-- **A1 - Location permission denied:** The system asks the driver to enter a postal code or address.
-- **A2 - No compatible stations found:** The system suggests increasing the search radius or relaxing optional filters.
-- **A3 - Live API unavailable:** The system displays cached results and clearly shows when they were last updated.
-- **A4 - Station status unknown:** The system includes the station only if the user allows unknown availability and labels it accordingly.
+- **AF-S2 - Use current location:** The driver selects the location button and grants browser location permission. The browser supplies coordinates, and the driver then selects **Search**.
+- **AF-S8 - No matching stations:** The system displays suggestions to increase the radius, try another connector, or allow unknown availability. Implemented suggestion buttons can increase the radius to 20 km or enable unknown availability; the driver must search again.
+- **AF-S8 - Cached provider snapshot:** If a previously retrieved LTA snapshot remains available after a provider error, the system labels the results as cached and shows the last-update time and fallback reason.
+- **AF-S10 - View another station:** The driver closes the details modal or selects a different station or map marker.
 
-**Postconditions:** A list of compatible charging stations is displayed.
+**Exceptions:**
+
+1. If no location or coordinates are provided, the system asks the driver to enter an address or postal code or use the current location.
+2. If browser location is unavailable or permission is denied, the system asks the driver to enter an address or Singapore postal code.
+3. If the location cannot be resolved, the system displays the backend error and does not show results.
+4. If live charging data has never been loaded or is not configured, the system displays an availability/configuration error and does not fabricate station data.
+
+**Includes:** UC-02 Receive a Ranked Charger Recommendation
+
+**Special requirements:** LTA and OneMap credentials remain in the backend. Unknown values remain labelled as unknown.
+
+**Assumptions:** Availability is a snapshot and does not reserve a charger or guarantee that it will remain available.
+
+**Notes and issues:** The station-details modal contains a visible **Directions** button, but no navigation action is connected to it; directions are therefore not an implemented use case.
 
 ---
 
-### UC-02: Recommend the Best Charger
+### UC-02: Receive a Ranked Charger Recommendation
 
-**Primary actor:** EV driver
+**Actor:** EV driver
 
-**Goal:** Receive a ranked and explainable recommendation instead of choosing only the nearest charger.
+**Description:** Allows an EV driver to receive explainable, ranked charging-station options based on the selected search criteria and ranking priority.
 
 **Preconditions:**
 
-- At least one compatible charging station has been found.
-- The system has the driver's location and basic charging requirements.
+1. UC-01 has resolved a location and found at least one station matching the active filters.
+2. At least one compatible connector can be selected for each candidate station.
 
-**Trigger:** The driver requests a recommendation or completes a charger search.
+**Postconditions:** The system displays a best match followed by the remaining ranked compatible stations.
 
-**Main flow:**
+**Priority:** High
 
-1. The system evaluates each compatible station using:
-   - current availability;
-   - estimated travel time or detour;
-   - charging speed;
-   - charging price;
-   - operating hours; and
-   - user preferences.
-2. The system calculates a recommendation score for every candidate.
-3. The system ranks the candidates by score.
-4. The system presents the best option and at least two alternatives.
-5. The system explains the important reasons behind the recommendation.
-6. The driver accepts a recommendation or selects another station.
+**Frequency of use:** High
 
-**Example initial scoring model:**
+**Flow of events:**
 
-```text
-Recommendation score =
-    30% availability confidence
-  + 25% travel time
-  + 20% charging speed
-  + 15% price
-  + 10% user preference
-```
-
-The final implementation should normalize values before combining them and allow weights to change according to the user's priorities.
+1. During a station search, the driver selects one of four implemented ranking priorities: Balanced, Availability, Speed, or Savings.
+2. The system selects the requested connector or, when **Any connector** is selected, chooses a connector for each station using availability and charging speed.
+3. The backend attempts to obtain OneMap driving distance and travel time for up to the first eight search candidates.
+4. For candidates without a OneMap route, the backend calculates straight-line distance and an estimated travel time.
+5. The system normalizes and combines availability, travel time, charging speed, price, and operator preference using the selected priority's weights.
+6. When a station's price is unknown, the system removes the price component and redistributes the effective weight across the remaining components.
+7. The system calculates estimated charging time from the intended energy and connector power when charging power is known.
+8. The system calculates estimated cost when price is known.
+9. The system sorts the candidates by score and labels the first station as **Best match**.
+10. The system displays up to three reasons for each recommendation, such as current availability, charging speed, proximity, price, operator match, or the connector selected.
 
 **Alternative flows:**
 
-- **A1 - Price missing:** The system excludes price from the score and redistributes its weight.
-- **A2 - Route service unavailable:** The system uses straight-line distance and marks the travel time as unavailable.
-- **A3 - All matching chargers occupied:** The system suggests a larger search area or allowing stations with unknown status.
+- **AF-S3 - Route unavailable:** The system uses straight-line distance and labels the travel source as an estimate.
+- **AF-S6 - Price unavailable:** The system displays the price and cost as unknown and excludes price from the station's score.
+- **AF-S9 - Fewer than three results:** The system displays only the number of ranked stations that are available.
 
-**Postconditions:** The driver has a ranked list and can understand why the top charger was recommended.
+**Exceptions:** If a candidate has no compatible connector, the backend rejects it rather than ranking an incompatible charging option.
+
+**Includes:** None
+
+**Special requirements:** The recommendation must remain explainable and must identify whether travel data came from OneMap or a straight-line estimate.
+
+**Assumptions:** A higher score indicates a better match for the selected ranking priority; it is not a guarantee of charger availability on arrival.
+
+**Notes and issues:** Ranking priorities are chosen for each search and are not saved to a user profile.
 
 ---
 
 ### UC-03: Compare Charging Options
 
-**Primary actor:** EV driver
+**Actor:** EV driver
 
-**Goal:** Compare several charging stations side by side.
-
-**Preconditions:** At least two stations are present in the search results.
-
-**Main flow:**
-
-1. The driver selects two or more stations.
-2. The system compares their:
-   - live availability;
-   - connector compatibility;
-   - charging speed;
-   - estimated charging duration;
-   - price and estimated charging cost;
-   - travel time or detour;
-   - operating hours; and
-   - operator.
-3. The system highlights the strongest and weakest value in each category.
-4. The driver selects a preferred station.
-
-**Alternative flow:** If a value is unavailable, the system displays "Unknown" instead of estimating it without evidence.
-
-**Postconditions:** A station is selected or the driver returns to the results.
-
----
-
-### UC-04: Monitor a Selected Charger
-
-**Primary actor:** Registered user
-
-**Goal:** Be informed if the selected charger becomes occupied or unavailable before arrival.
+**Description:** Allows an EV driver to compare two to four stations from the current ranked search results side by side.
 
 **Preconditions:**
 
-- The user is signed in.
-- The user has selected a station or connector to monitor.
+1. UC-01 and UC-02 have produced at least two ranked stations.
+2. The current search location and intended energy amount are available.
 
-**Main flow:**
+**Postconditions:** The driver selects a preferred station for detailed viewing or closes the comparison and returns to the search results.
 
-1. The user selects "Monitor charger."
-2. The system adds the station to a temporary watchlist.
-3. The backend checks updated availability at an appropriate interval.
-4. The system records the time of every update.
-5. If availability changes, the system notifies the user.
-6. The user keeps the station, stops monitoring it, or requests an alternative.
+**Priority:** High
+
+**Frequency of use:** Medium
+
+**Flow of events:**
+
+1. The driver selects **Compare** on two to four station cards.
+2. The system displays a comparison tray showing how many stations are selected.
+3. The driver selects **Compare side by side**.
+4. The backend compares the selected stations using the connector preference and intended energy from the current search.
+5. The system displays each station's:
+   - connector used;
+   - current availability;
+   - charging power;
+   - estimated charging time;
+   - price per kWh;
+   - estimated cost;
+   - travel time and travel-data source; and
+   - operator.
+6. The system highlights the best and weakest known numeric values for availability, power, charging time, price, estimated cost, and travel time.
+7. The driver selects **Choose** for one station.
+8. The system closes the comparison and opens that station's details.
 
 **Alternative flows:**
 
-- **A1 - Updates unavailable:** The system warns the user that the displayed status may be stale.
-- **A2 - Monitoring expires:** The system stops monitoring after the journey or a configured time limit.
+- **AF-S1 - Remove a selection:** The driver selects **Compare** again on a selected station or uses **Clear** to remove all selections.
+- **AF-S5 - Unknown data:** The system displays **Unknown** instead of inventing an availability, charging-power, charging-time, price, or cost value.
+- **AF-S8 - Close comparison:** The driver closes the modal without selecting a station and returns to the search results.
 
-**Postconditions:** Monitoring ends or continues until its expiry time.
+**Exceptions:**
+
+1. The comparison action remains disabled until at least two stations are selected.
+2. If the driver tries to select more than four stations, the system keeps the existing selections and displays a limit message.
+3. If the comparison request fails, the modal displays the backend error.
+
+**Includes:** None
+
+**Special requirements:** Only known numeric values are considered when highlighting best and weakest values.
+
+**Assumptions:** The compared values use the latest station snapshot held by the running backend.
+
+**Notes and issues:** Operating hours and amenities are not compared because they are not part of the implemented station model.
 
 ---
 
-### UC-05: Recommend an Alternative Charger
+### UC-04: Monitor Charger Availability
 
-**Primary actor:** Registered user
+**Actor:** EV driver
 
-**Goal:** Find a suitable replacement when the selected charger becomes occupied or unavailable.
+**Description:** Allows an EV driver to monitor the availability of a selected station and connector for 90 minutes.
 
 **Preconditions:**
 
-- A charger is being monitored.
-- Its availability has changed or the user has requested another option.
+1. UC-01 has displayed at least one station.
+2. The selected station supports the connector chosen for monitoring.
 
-**Main flow:**
+**Postconditions:** A monitor is active, stopped, or expired. Its current status and recorded events remain visible until the backend restarts.
 
-1. The system searches around the user's latest known location or current route.
-2. The system excludes incompatible and unavailable chargers.
-3. The recommendation engine ranks the remaining alternatives.
-4. The system shows the best alternative and the additional travel time.
-5. The user accepts or rejects the alternative.
-6. If accepted, the system updates the selected station and begins monitoring it.
+**Priority:** High
 
-**Safety rule:** While a vehicle is moving, the application should present a simplified notification and avoid requiring detailed interaction.
+**Frequency of use:** Medium
 
-**Alternative flow:** If no alternative is available, the system recommends expanding the search radius or waiting for the current station.
+**Flow of events:**
 
-**Postconditions:** A new charger is selected, or the original choice is retained.
+1. The driver selects **Monitor** on a station card or **Monitor this charger** in the station-details modal.
+2. The frontend sends the selected station and connector to the backend with a 90-minute duration.
+3. The backend validates that the station supports the connector and creates an active monitor.
+4. The system opens the monitoring page and displays the station, connector, current availability, charging speed, last-check time, expiry time, and recent event history.
+5. Every 30 seconds, the backend attempts to refresh the LTA snapshot and checks every active monitor.
+6. When the available count changes, the backend adds a timestamped availability-change event.
+7. While open, the monitoring page refreshes its displayed monitor list every 15 seconds.
+8. The driver may select **Check now** to request an immediate live-provider refresh and availability check.
+9. The driver may select **Stop** to end monitoring before it expires.
 
----
+**Alternative flows:**
 
-### UC-06: Manage Vehicle Profile and Preferences
+- **AF-S3 - Monitor already active:** If the same station and connector already have an active monitor, the backend returns the existing monitor instead of creating a duplicate.
+- **AF-S6 - No availability change:** The backend updates the last-check time without creating an availability-change event, and a manual check reports that there was no change.
+- **AF-S9 - Monitoring expires:** Once the expiry time is reached, the backend marks the monitor as expired and moves it to previous monitoring.
 
-**Primary actor:** Registered user
+**Exceptions:**
 
-**Goal:** Save information used to personalize filtering and recommendations.
+1. If the station does not support the selected connector, the backend rejects the monitor request.
+2. If an immediate live refresh fails, the system displays an error and does not claim that a new availability check succeeded.
+3. A stopped or expired monitor cannot be checked again.
 
-**Main flow:**
+**Includes:** None
 
-1. The user creates or edits a vehicle profile.
-2. The user enters:
-   - vehicle name;
-   - supported connector types;
-   - maximum supported charging power;
-   - battery capacity;
-   - typical energy consumption; and
-   - optional current range or battery percentage.
-3. The user configures preferences such as maximum price, preferred operator, maximum detour, and ranking priorities.
-4. The system validates and saves the profile.
+**Special requirements:** Availability-change events and monitor state must include timestamps.
 
-**Alternative flow:** If a required value is invalid, the system explains the valid range or format and does not save the profile.
+**Assumptions:** The user keeps the application available to view changes. The implementation does not send operating-system, email, SMS, or push notifications.
 
-**Postconditions:** The vehicle and preferences are available for future recommendations.
+**Notes and issues:** Monitoring state is stored in backend memory and is lost when the backend restarts.
 
 ---
 
-### UC-07: Record and Review Charging Sessions
+### UC-05: Find and Accept an Alternative Charger
 
-**Primary actor:** Registered user
+**Actor:** EV driver
 
-**Goal:** Maintain a useful history of charging activity and costs.
+**Description:** Allows an EV driver with an existing monitor to find available compatible alternatives near the driver's current location and switch monitoring to one of them.
 
-**Main flow:**
+**Preconditions:**
 
-1. The user starts a new charging-session record.
-2. As the user types a station name, address, or postal code, the system queries matching stations from the backend.
-3. The user selects a station; the system fills the current date and time by default.
-4. The user enters the energy added and total cost and may adjust the date.
-5. The backend validates the station and saves its authoritative name with the session.
-6. The system updates summaries such as monthly cost, energy added, and average cost per kWh.
+1. A monitor created through UC-04 exists.
+2. The browser supports location access.
 
-**Postconditions:** The session appears in the user's charging history.
+**Postconditions:** The existing monitor is updated to the accepted alternative, or the original monitored station remains unchanged.
+
+**Priority:** High
+
+**Frequency of use:** Medium
+
+**Flow of events:**
+
+1. The driver selects **Find alternatives near me** on a monitor.
+2. The browser requests and returns the driver's current coordinates.
+3. The frontend requests alternatives within the implemented 15 km search radius.
+4. The backend searches for stations supporting the monitored connector.
+5. The backend excludes the currently monitored station and any station whose compatible connector is not currently available.
+6. The recommendation engine ranks the remaining stations with availability and travel weighted most heavily.
+7. The system displays up to three alternatives with availability, travel time, additional travel time, charging power, and a recommendation reason.
+8. The driver selects **Switch monitoring** for an alternative.
+9. The backend checks that the alternative is still compatible and available.
+10. The backend changes the existing monitor to the alternative station, records an acceptance event, updates its availability and last-check time, and continues monitoring it.
+
+**Alternative flows:**
+
+- **AF-S7 - No alternative found:** The system explains that no available alternative was found and suggests expanding the search radius or waiting for the current station. The current frontend request uses a fixed 15 km radius, so expanding it requires returning to the main search.
+- **AF-S8 - Reject alternatives:** The driver closes the modal without switching, and the original station remains monitored.
+
+**Exceptions:**
+
+1. If browser location is unavailable or permission is denied, the system displays an error and does not request alternatives.
+2. If the selected alternative has become unavailable or incompatible before acceptance, the backend rejects the switch and keeps the original monitor.
+
+**Includes:** UC-02 Receive a Ranked Charger Recommendation
+
+**Special requirements:** The current station must never be returned as its own alternative, and every alternative must support the monitored connector with at least one available charger.
+
+**Assumptions:** Additional travel time is an estimate based on the driver's reported current location.
+
+**Notes and issues:** The application does not detect whether the vehicle is moving and does not implement a reduced-interaction driving mode.
 
 ---
 
-## 5. External Data Requirements
+### UC-06: Record and Review Charging Sessions
 
-### LTA DataMall
+**Actor:** EV driver
 
-Potential feeds include:
+**Description:** Allows an EV driver to record a completed charging session and review recorded sessions and current-month summaries.
 
-- `EVChargingPoints` for charging points and availability by postal code.
-- `EVCBatch` for all charging points and availability.
-- `CarParkAvailability` for nearby parking capacity.
-- `TrafficSpeedBands` and `TrafficIncidents` for optional traffic-aware recommendations.
+**Preconditions:**
 
-The DataMall `AccountKey` must be stored on the backend and must not be exposed in frontend code.
+1. The backend has retrieved station data from LTA DataMall.
+2. The driver knows the energy added and total cost for the session.
 
-### OneMap
+**Postconditions:** A valid session is added to the history and the current-month summaries are recalculated.
 
-Potential services include:
+**Priority:** Medium
 
-- address and postal-code search;
-- reverse geocoding; and
-- route and travel-time calculation.
+**Frequency of use:** Medium
 
-## 6. Important System Rules
+**Flow of events:**
 
-- Always display when availability information was last updated.
-- Never guarantee that a charger will still be available when the user arrives.
-- Never recommend a connector that is incompatible with the selected vehicle.
-- Do not invent missing prices, statuses, or operating hours.
-- Distinguish official API data from user-submitted information.
-- Cache API responses to reduce unnecessary calls and remain usable during temporary outages.
-- Keep external API keys and tokens on the backend.
+1. The driver opens **Charging history**.
+2. The system displays existing sessions and the current month's total spend, total energy, session count, average cost per kWh, and a cost-by-session chart when records exist.
+3. The driver selects **Record session**.
+4. The system opens a form with the current date and time filled by default.
+5. The driver types at least two characters from a station name, address, or postal code.
+6. The backend searches the current station data and returns up to 20 matching station options.
+7. The driver selects a station and may adjust the session date and time.
+8. The driver enters energy added between 0.1 kWh and 200 kWh and total cost between S$0 and S$1,000.
+9. The driver selects **Save session**.
+10. The backend validates the input and station ID, stores the authoritative station name with the record, and returns the new session.
+11. The system closes the form, reloads the history, and recalculates summaries for sessions whose start time is in the current month.
+
+**Alternative flows:**
+
+- **AF-S4 - Keep default date:** The driver leaves the prefilled date and time unchanged.
+- **AF-S5 - Refine station query:** If the intended station is not shown, the driver changes the typed station name, address, or postal code and the system searches again.
+- **AF-S9 - Cancel entry:** The driver closes the form without saving a session.
+- **AF-S2 - No existing sessions:** The system displays an empty state and a **Record first session** action; all summary values are zero.
+
+**Exceptions:**
+
+1. If the station query contains fewer than two characters, the system does not return station options.
+2. If no station is selected, the save action remains disabled.
+3. If the date, energy, or cost is invalid, the frontend displays a validation message and does not submit the record.
+4. If the selected station no longer exists in the backend's current data, the backend rejects the record.
+
+**Includes:** None
+
+**Special requirements:** The backend must validate the station and numeric ranges instead of trusting the browser form.
+
+**Assumptions:** The driver enters the actual energy and cost; the application does not import charging transactions automatically.
+
+**Notes and issues:** Charging-session records are stored in backend memory and are lost when the backend restarts. Editing and deleting sessions are not implemented.
