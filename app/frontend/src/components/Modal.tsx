@@ -1,4 +1,4 @@
-import { Modal as MantineModal } from '@mantine/core'
+import { Modal as MantineModal, Text, Title } from '@mantine/core'
 import type { ReactNode } from 'react'
 
 export function Modal({
@@ -21,8 +21,8 @@ export function Modal({
       size={wide ? 'min(1000px, calc(100vw - 32px))' : 570}
       title={
         <div className="modal-title">
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+          <Title order={2}>{title}</Title>
+          {subtitle && <Text>{subtitle}</Text>}
         </div>
       }
       overlayProps={{ backgroundOpacity: 0.52, blur: 2 }}

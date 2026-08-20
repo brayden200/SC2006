@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Loader } from '@mantine/core'
+import { Alert, Badge, Button, Card, Loader, SimpleGrid } from '@mantine/core'
 import {
   AlertTriangle,
   BellRing,
@@ -145,13 +145,18 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
           <p>Find a compatible charger, then choose “Monitor” to watch it for changes.</p>
         </div>
       ) : (
-        <div className="monitor-grid">
+        <SimpleGrid className="monitor-grid" cols={2} spacing={16}>
           {active.map((monitor) => {
             const connector = monitor.station.connectors.find((item) => item.type === monitor.connector)!
             const latestChange = monitor.events.find((item) => item.type === 'availability_changed')
             const unavailable = (connector.available ?? 0) === 0
             return (
-              <article className={`monitor-card ${unavailable ? 'monitor-alert' : ''}`} key={monitor.id}>
+              <Card
+                component="article"
+                className={`monitor-card ${unavailable ? 'monitor-alert' : ''}`}
+                key={monitor.id}
+                padding={0}
+              >
                 <div className="monitor-card-head">
                   <div className={`live-pulse ${unavailable ? 'danger' : ''}`}>
                     <span />
@@ -164,9 +169,9 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                       {monitor.station.address}
                     </p>
                   </div>
-                  <span className={`status-badge ${unavailable ? 'danger' : ''}`}>
+                  <Badge className={`status-badge ${unavailable ? 'danger' : ''}`} unstyled>
                     {unavailable ? 'Fully occupied' : `${connector.available ?? 'Unknown'} available`}
-                  </span>
+                  </Badge>
                 </div>
                 {latestChange && latestChange === monitor.events[0] && (
                   <div className={`change-alert ${unavailable ? 'danger' : ''}`}>
@@ -239,10 +244,10 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                     Find alternatives near me
                   </Button>
                 </div>
-              </article>
+              </Card>
             )
           })}
-        </div>
+        </SimpleGrid>
       )}
 
       {past.length > 0 && (
@@ -280,11 +285,15 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
               {alternatives.alternatives.map((station, index) => {
                 const plug = station.connectors.find((item) => item.type === alternativeMonitor.connector)!
                 return (
-                  <article key={station.id} className={index === 0 ? 'recommended-alt' : ''}>
+                  <Card
+                    component="article"
+                    key={station.id}
+                    className={index === 0 ? 'recommended-alt' : ''}
+                  >
                     {index === 0 && (
-                      <span className="best-ribbon">
-                        <Zap size={13} /> Best alternative
-                      </span>
+                      <Badge className="best-ribbon" unstyled leftSection={<Zap size={13} />}>
+                        Best alternative
+                      </Badge>
                     )}
                     <div>
                       <h3>{station.name}</h3>
@@ -312,7 +321,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
                     >
                       Switch monitoring
                     </Button>
-                  </article>
+                  </Card>
                 )
               })}
             </div>

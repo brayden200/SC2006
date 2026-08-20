@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core'
+import { Badge, Button, Card } from '@mantine/core'
 import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react'
 import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
 import type { ConnectorType, RankedStation } from '../types'
@@ -51,36 +51,43 @@ export function StationDetailsModal({
       <h3 className="section-mini-title">Charging connectors</h3>
       <div className="connector-list">
         {station.connectors.map((item) => (
-          <div className={`connector-item ${item.type === connector ? 'selected' : ''}`} key={item.type}>
+          <Card
+            className={`connector-item ${item.type === connector ? 'selected' : ''}`}
+            key={item.type}
+            padding={0}
+          >
             <PlugZap size={20} />
             <div>
               <b>{item.type}</b>
               <small>{item.powerKw} kW</small>
             </div>
-            <span className={`availability-pill ${item.status !== 'available' ? 'busy' : ''}`}>
+            <Badge
+              className={`availability-pill ${item.status !== 'available' ? 'busy' : ''}`}
+              unstyled
+            >
               <i />
               {item.available === null ? 'Unknown' : `${item.available} of ${item.total} available`}
-            </span>
-          </div>
+            </Badge>
+          </Card>
         ))}
       </div>
       <div className="details-grid">
-        <div>
+        <Card padding={0}>
           <BatteryCharging />
           <span>Price</span>
           <b>{hasKnownPrice(station.pricePerKwh) ? `${formatPrice(station.pricePerKwh)}/kWh` : 'Unknown'}</b>
-        </div>
-        <div>
+        </Card>
+        <Card padding={0}>
           <Database />
           <span>Data source</span>
           <b>{station.source}</b>
-        </div>
-        <div>
+        </Card>
+        <Card padding={0}>
           <MapPin />
           <span>Charging estimate</span>
           <b>{station.estimatedCost === null ? 'Unknown' : `$${station.estimatedCost.toFixed(2)}`}</b>
-        </div>
-        <div>
+        </Card>
+        <Card padding={0}>
           <Navigation />
           <span>Travel time</span>
           <b>
@@ -95,8 +102,8 @@ export function StationDetailsModal({
               ? 'OneMap road route'
               : 'Straight-line estimate — not road travel time'}
           </small>
-        </div>
-        <div>
+        </Card>
+        <Card padding={0}>
           <MapPin />
           <span>Parking estimate</span>
           <b>
@@ -104,7 +111,7 @@ export function StationDetailsModal({
               ? 'Unavailable'
               : `$${station.estimatedParkingCost.toFixed(2)}`}
           </b>
-        </div>
+        </Card>
       </div>
       {routeError && (
         <div className="data-note route-error-note" role="alert">

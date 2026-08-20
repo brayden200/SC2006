@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ActionIcon } from '@mantine/core'
 import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet'
 import {
   Circle,
@@ -238,33 +239,36 @@ export function MapPanel({
       </MapContainer>
 
       <div className="map-controls" aria-label="Map controls">
-        <button
+        <ActionIcon
           type="button"
+          variant="default"
           onClick={zoomIn}
           disabled={!map || zoom >= map.getMaxZoom()}
           aria-label="Zoom in"
           title="Zoom in"
         >
           <Plus size={17} />
-        </button>
-        <button
+        </ActionIcon>
+        <ActionIcon
           type="button"
+          variant="default"
           onClick={zoomOut}
           disabled={!map || zoom <= map.getMinZoom()}
           aria-label="Zoom out"
           title="Zoom out"
         >
           <Minus size={17} />
-        </button>
-        <button
+        </ActionIcon>
+        <ActionIcon
           type="button"
+          variant="default"
           onClick={recenter}
           disabled={!map || !currentLocation}
           aria-label="Recenter on my location"
           title={currentLocation ? 'Recenter on my location' : 'Current location unavailable'}
         >
           <LocateFixed size={17} />
-        </button>
+        </ActionIcon>
       </div>
 
       <div className="map-search-label" title={location.label}>

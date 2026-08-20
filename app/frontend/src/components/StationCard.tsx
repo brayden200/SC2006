@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core'
+import { Badge, Button, Card } from '@mantine/core'
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react'
 import { formatPrice, timeAgo } from '../lib'
 import type { ConnectorPreference, RankedStation } from '../types'
@@ -44,14 +44,21 @@ export function StationCard({
   const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0
   const roadTravel = getCardRoadTravel(station)
   return (
-    <article className={`station-card ${best ? 'best-station' : ''}`} onMouseEnter={onHover}>
+    <Card
+      component="article"
+      className={`station-card ${best ? 'best-station' : ''}`}
+      onMouseEnter={onHover}
+      padding={0}
+    >
       {best && (
-        <div className="best-ribbon">
-          <Sparkles size={14} /> Best match
-        </div>
+        <Badge className="best-ribbon" unstyled leftSection={<Sparkles size={14} />}>
+          Best match
+        </Badge>
       )}
       <div className="station-main-row">
-        <div className="rank-badge">{rank}</div>
+        <Badge className="rank-badge" unstyled>
+          {rank}
+        </Badge>
         <div className="station-title">
           <h3>{station.name}</h3>
           <p>
@@ -66,9 +73,9 @@ export function StationCard({
       </div>
       <div className="station-metrics">
         <div>
-          <span className={`availability-pill ${isAvailable ? '' : 'busy'}`}>
+          <Badge className={`availability-pill ${isAvailable ? '' : 'busy'}`} unstyled>
             <i /> {plug.available ?? 'Unknown'} available
-          </span>
+          </Badge>
           <small>
             of {plug.total} · {timeAgo(station.lastUpdated)}
           </small>
@@ -118,7 +125,9 @@ export function StationCard({
             </span>
           ))}
         </div>
-        <span className="operator-tag">{station.operator}</span>
+        <Badge className="operator-tag" unstyled>
+          {station.operator}
+        </Badge>
       </div>
       <div className="station-actions">
         <Button
@@ -136,6 +145,6 @@ export function StationCard({
           Monitor
         </Button>
       </div>
-    </article>
+    </Card>
   )
 }

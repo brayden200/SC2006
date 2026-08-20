@@ -1,5 +1,17 @@
 import { useRef, useState } from 'react'
-import { ActionIcon, Alert, Button, Checkbox, Loader, Paper, Select, Slider, TextInput } from '@mantine/core'
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Checkbox,
+  Group,
+  Loader,
+  Paper,
+  Select,
+  Slider,
+  Stack,
+  TextInput,
+} from '@mantine/core'
 import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react'
 import { api } from '../api'
 import { ComparisonModal } from '../components/ComparisonModal'
@@ -310,7 +322,7 @@ export function ExplorePage({
             Search
           </Button>
         </div>
-        <div className="quick-filters">
+        <Group className="quick-filters" gap={7}>
           <Button
             size="compact-sm"
             variant={availableOnly ? 'light' : 'default'}
@@ -334,7 +346,7 @@ export function ExplorePage({
           >
             All filters
           </Button>
-        </div>
+        </Group>
         {filtersOpen && (
           <div className="advanced-filters">
             <div className="filter-slider">
@@ -434,7 +446,7 @@ export function ExplorePage({
             </span>
           </div>
           <div className="results-layout">
-            <div className="station-list">
+            <Stack className="station-list" gap={12}>
               {ranked.map((station, index) => (
                 <StationCard
                   key={station.id}
@@ -449,7 +461,7 @@ export function ExplorePage({
                   onHover={() => setMapSelectedId(station.id)}
                 />
               ))}
-            </div>
+            </Stack>
             <aside className="map-column">
               <MapPanel
                 stations={ranked}
@@ -466,9 +478,9 @@ export function ExplorePage({
                 routeLoading={routeLoading}
                 routeError={routeError}
               />
-              <div className="map-disclaimer">
+              <Paper className="map-disclaimer" radius="md">
                 <CircleAlert size={15} /> Availability is a snapshot, not a reservation.
-              </div>
+              </Paper>
             </aside>
           </div>
         </>
@@ -502,7 +514,7 @@ export function ExplorePage({
       )}
 
       {compareIds.length > 0 && (
-        <div className="compare-tray">
+        <Paper className="compare-tray" radius="lg" withBorder>
           <div>
             <span className="compare-stack">
               {compared.map((item, index) => (
@@ -522,7 +534,7 @@ export function ExplorePage({
           <Button disabled={compareIds.length < 2} onClick={() => setShowComparison(true)}>
             Compare side by side
           </Button>
-        </div>
+        </Paper>
       )}
       {showComparison && (
         <ComparisonModal

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ActionIcon, NavLink, Notification } from '@mantine/core'
 import { Clock3, Compass, Menu, Sparkles, X, Zap } from 'lucide-react'
 import type { Page } from './types'
 import { ExplorePage } from './pages/ExplorePage'
@@ -64,25 +65,28 @@ export default function App() {
             ChargeWise <b>SG</b>
           </span>
         </div>
-        <button
+        <ActionIcon
           className="mobile-close icon-button"
+          variant="default"
           onClick={() => setMenuOpen(false)}
           aria-label="Close menu"
         >
           <X size={20} />
-        </button>
+        </ActionIcon>
         <p className="nav-label">Plan your charge</p>
         <nav>
           {nav.map(({ id, label, icon: Icon }) => (
-            <button
+            <NavLink
+              component="button"
+              type="button"
               className={`nav-item ${page === id ? 'active' : ''}`}
+              active={page === id}
               onClick={() => navigate(id)}
               key={id}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-              {id === 'monitoring' && <span className="nav-dot" />}
-            </button>
+              label={label}
+              leftSection={<Icon size={19} />}
+              rightSection={id === 'monitoring' ? <span className="nav-dot" /> : undefined}
+            />
           ))}
         </nav>
         <div className="sidebar-tip">
@@ -107,13 +111,14 @@ export default function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <button
+          <ActionIcon
             className="mobile-menu icon-button"
+            variant="default"
             onClick={() => setMenuOpen(true)}
             aria-label="Open menu"
           >
             <Menu />
-          </button>
+          </ActionIcon>
           <div className="mobile-brand">
             <Zap size={18} />
             <span>ChargeWise SG</span>
@@ -127,12 +132,15 @@ export default function App() {
       </main>
 
       {toast && (
-        <div className="toast" role="status">
-          <span>
-            <Zap size={17} />
-          </span>
+        <Notification
+          className="toast"
+          role="status"
+          withCloseButton={false}
+          icon={<Zap size={17} />}
+          color="lime"
+        >
           {toast}
-        </div>
+        </Notification>
       )}
     </div>
   )

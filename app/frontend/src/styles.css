@@ -5,9 +5,7 @@
   font-synthesis: none;
   --ink: #17211d;
   --muted: #66716b;
-  --line: #dfe4de;
   --paper: #fff;
-  --soft: #f0f3ee;
   --green: #167a4b;
   --green-dark: #0d5d38;
   --lime: #bfe44b;
@@ -30,18 +28,14 @@ body {
   overflow-x: hidden;
 }
 button,
-input,
-select,
-textarea {
+input {
   font: inherit;
 }
 button {
   color: inherit;
 }
 button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+input:focus-visible {
   outline: 3px solid rgba(22, 122, 75, 0.2);
   outline-offset: 2px;
 }
@@ -95,6 +89,7 @@ textarea:focus-visible {
   gap: 5px;
 }
 .nav-item {
+  width: 100%;
   border: 0;
   border-radius: 11px;
   padding: 12px;
@@ -267,8 +262,6 @@ textarea:focus-visible {
   height: 42px;
 }
 .quick-filters {
-  display: flex;
-  gap: 7px;
   padding: 14px 0;
   border-top: 1px solid #edf0ec;
   margin-top: 16px;
@@ -338,18 +331,12 @@ textarea:focus-visible {
   gap: 18px;
   align-items: start;
 }
-.station-list {
-  display: grid;
-  gap: 12px;
-}
 .station-card {
   position: relative;
-  background: white;
   border: 1px solid #e0e5df;
   border-radius: 16px;
   padding: 19px 18px 14px;
   transition: 0.2s;
-  overflow: hidden;
 }
 .station-card:hover {
   border-color: #b8c7bd;
@@ -665,14 +652,9 @@ textarea:focus-visible {
   box-shadow: 0 3px 12px rgba(29, 46, 38, 0.2);
 }
 .map-controls button {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
   border: 0;
   border-bottom: 1px solid #e2e6e1;
   background: rgba(255, 255, 255, 0.97);
-  cursor: pointer;
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -921,14 +903,9 @@ textarea:focus-visible {
   font-size: 10px;
 }
 .icon-button {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
   border-radius: 9px;
   border: 1px solid #e0e5e1;
   background: white;
-  cursor: pointer;
 }
 .cw-modal-body {
   min-height: 0;
@@ -1156,16 +1133,9 @@ textarea:focus-visible {
   margin-bottom: 24px;
   font-size: 10px;
 }
-.monitor-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
 .monitor-card {
-  background: white;
   border: 1px solid #dbe2dc;
   border-radius: 17px;
-  overflow: hidden;
 }
 .monitor-card.monitor-alert {
   border-color: #e5aaa1;
@@ -1347,11 +1317,9 @@ textarea:focus-visible {
   gap: 10px;
 }
 .alternative-list article {
-  position: relative;
   border: 1px solid #dfe4df;
   border-radius: 13px;
   padding: 16px 13px 13px;
-  overflow: hidden;
 }
 .alternative-list article.recommended-alt {
   border-color: #91bd9e;
@@ -1408,14 +1376,23 @@ textarea:focus-visible {
   font-size: 11px;
   animation: toastIn 0.25s ease;
 }
-.toast > span {
+.toast .mantine-Notification-icon {
   width: 29px;
   height: 29px;
+  min-width: 29px;
+  margin: 0;
   display: grid;
   place-items: center;
   border-radius: 8px;
   color: #173126;
   background: var(--lime);
+}
+.toast .mantine-Notification-body {
+  margin: 0;
+}
+.toast .mantine-Notification-description {
+  color: white;
+  font-size: 11px;
 }
 @keyframes toastIn {
   from {
