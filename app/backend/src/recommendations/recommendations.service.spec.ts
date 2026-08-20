@@ -188,7 +188,6 @@ describe('RecommendationsService', () => {
       },
     )
     expect(ranked.estimatedCost).toBeNull()
-    expect(ranked.scoreBreakdown.price).toBeNull()
     expect(ranked.reasons).toContain('Price is unknown and was excluded from scoring')
   })
 
@@ -203,6 +202,5 @@ describe('RecommendationsService', () => {
     )
     expect(ranked.pricePerKwh).toBeNull()
     expect(ranked.estimatedCost).toBeNull()
-    expect(ranked.scoreBreakdown.price).toBeNull()
   })
 })

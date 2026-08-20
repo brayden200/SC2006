@@ -253,12 +253,6 @@ textarea:focus-visible {
   gap: 24px;
 }
 
-.card {
-  background: var(--paper);
-  border: 1px solid #e0e4df;
-  border-radius: 18px;
-  box-shadow: 0 8px 30px rgba(38, 52, 45, 0.045);
-}
 .search-card {
   padding: 20px 22px 0;
   margin-bottom: 14px;

@@ -36,33 +36,6 @@ export class StationsService {
     @Optional() private readonly parking?: ParkingService,
   ) {}
 
-  getAll(): Station[] {
-    return structuredClone(this.stations)
-  }
-
-  async options(query = '') {
-    const normalizedQuery = query.trim().slice(0, 100).toLowerCase()
-    if (normalizedQuery.length < 2) return { stations: [] }
-    await this.refreshFromProvider()
-    const tokens = normalizedQuery.split(/\s+/)
-    const matches = new Map<string, { id: string; name: string; address: string }>()
-    this.stations.forEach((station) => {
-      const searchable = `${station.name} ${station.address} ${station.postalCode}`.toLowerCase()
-      if (tokens.every((token) => searchable.includes(token)) && !matches.has(station.id)) {
-        matches.set(station.id, { id: station.id, name: station.name, address: station.address })
-      }
-    })
-    return {
-      stations: [...matches.values()]
-        .sort((a, b) => {
-          const aStartsWithQuery = a.name.toLowerCase().startsWith(normalizedQuery)
-          const bStartsWithQuery = b.name.toLowerCase().startsWith(normalizedQuery)
-          return Number(bStartsWithQuery) - Number(aStartsWithQuery) || a.name.localeCompare(b.name)
-        })
-        .slice(0, 20),
-    }
-  }
-
   findById(id: string): Station {
     const station = this.stations.find((item) => item.id === id)
     if (!station) throw new NotFoundException(`Station ${id} was not found`)

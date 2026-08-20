@@ -10,6 +10,6 @@ import { UraParkingService } from './parking/providers/ura-parking.service'
 @Module({
   providers: [LtaDataMallService, OneMapService, UraParkingService, HdbParkingService, ParkingService],
   controllers: [IntegrationsController, RoutesController],
-  exports: [LtaDataMallService, OneMapService, UraParkingService, HdbParkingService, ParkingService],
+  exports: [LtaDataMallService, OneMapService, ParkingService],
 })
 export class IntegrationsModule {}

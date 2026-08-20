@@ -6,7 +6,6 @@ import type {
   Monitor,
   RankedStation,
   RecommendationResponse,
-  SearchResponse,
   Station,
 } from './types'
 
@@ -33,14 +32,6 @@ export const api = {
       parking: { ura: IntegrationProviderStatus; hdb: IntegrationProviderStatus }
     }>('/integrations/status')
   },
-  searchStations(params: Record<string, string | number | boolean | undefined>) {
-    const query = new URLSearchParams()
-    Object.entries(params).forEach(([key, value]) => value !== undefined && query.set(key, String(value)))
-    return request<SearchResponse>(`/stations?${query}`)
-  },
-  getStation(id: string) {
-    return request<Station>(`/stations/${id}`)
-  },
   getDrivingRoute(
     origin: Pick<StationLocation, 'latitude' | 'longitude'>,
     destination: Pick<StationLocation, 'latitude' | 'longitude'>,
@@ -52,9 +43,6 @@ export const api = {
       endLng: String(destination.longitude),
     })
     return request<DrivingRoute>(`/routes/driving?${query}`)
-  },
-  searchStationOptions(query: string) {
-    return request<{ stations: StationOption[] }>(`/stations/options?query=${encodeURIComponent(query)}`)
   },
   recommend(body: Record<string, unknown>) {
     return request<RecommendationResponse>('/recommendations', {
@@ -104,27 +92,17 @@ export interface CompareOption {
   name: string
   operator: string
   connector: ConnectorType | null
-  connectorCompatible: boolean
   availability: number | null
-  availabilityStatus: string
   powerKw: number | null
   estimatedChargeMinutes: number | null
   pricePerKwh: number | null
   estimatedCost: number | null
-  parking: import('./types').ParkingInfo | null
   parkingRateText: string | null
   estimatedParkingCost: number | null
   estimatedTotalCost: number | null
   parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
-  distanceKm: number
   travelMinutes: number
-  lastUpdated: string
   travelSource: 'OneMap' | 'Straight-line estimate'
-}
-export interface StationOption {
-  id: string
-  name: string
-  address: string
 }
 interface StationLocation {
   latitude: number

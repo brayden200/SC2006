@@ -46,14 +46,6 @@ export interface LocationInput {
   label?: string
 }
 
-export interface ScoreBreakdown {
-  availability: number
-  travelTime: number
-  chargingSpeed: number
-  price: number | null
-  preference: number
-}
-
 export interface RankedStation extends Station {
   selectedConnector: ConnectorType
   score: number
@@ -65,6 +57,5 @@ export interface RankedStation extends Station {
   estimatedParkingCost: number | null
   estimatedTotalCost: number | null
   parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
-  scoreBreakdown: ScoreBreakdown
   reasons: string[]
 }

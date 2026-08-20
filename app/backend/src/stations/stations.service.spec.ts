@@ -16,27 +16,7 @@ const duplicateStation: Station = {
   lastUpdated: '2026-08-19T12:00:00.000Z',
 }
 
-describe('StationsService options', () => {
-  it('returns each canonical station ID only once', async () => {
-    const lta = {
-      isConfigured: () => true,
-      getAllStations: jest.fn().mockResolvedValue([duplicateStation, structuredClone(duplicateStation)]),
-      status: () => ({ state: 'available' }),
-    } as unknown as LtaDataMallService
-    const oneMap = { status: () => ({ state: 'not_checked' }) } as unknown as OneMapService
-    const service = new StationsService(lta, oneMap)
-
-    const result = await service.options('duplicate')
-
-    expect(result.stations).toEqual([
-      {
-        id: duplicateStation.id,
-        name: duplicateStation.name,
-        address: duplicateStation.address,
-      },
-    ])
-  })
-
+describe('StationsService search', () => {
   it('returns each canonical station ID only once from search results', async () => {
     const lta = {
       isConfigured: () => true,

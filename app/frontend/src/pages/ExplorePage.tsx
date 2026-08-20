@@ -8,12 +8,11 @@ import { StationCard } from '../components/StationCard'
 import { StationDetailsModal } from '../components/StationDetailsModal'
 import type {
   ConnectorPreference,
-  ConnectorType,
   DrivingRoute,
   Page,
   RankedStation,
   RecommendationResponse,
-  SearchResponse,
+  SearchMetadata,
   Station,
 } from '../types'
 
@@ -42,10 +41,6 @@ const weightSets = {
   },
 }
 
-function uniqueById<T extends { id: string }>(items: T[]) {
-  return [...new Map(items.map((item) => [item.id, item])).values()]
-}
-
 export function ExplorePage({
   navigate,
   notify,
@@ -65,7 +60,7 @@ export function ExplorePage({
   const [priority, setPriority] = useState<keyof typeof weightSets>('Balanced')
   const [energyKwh, setEnergyKwh] = useState(35)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [searchResult, setSearchResult] = useState<SearchResponse | null>(null)
+  const [searchResult, setSearchResult] = useState<SearchMetadata | null>(null)
   const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -184,24 +179,10 @@ export function ExplorePage({
       } catch (reason) {
         if (!locationQuery.trim() && !searchCoords) throw reason
       }
-      const search = await api.searchStations({
-        query: locationQuery,
+      const ranked = await api.recommend({
+        query: locationQuery || undefined,
         latitude: searchCoords?.latitude ?? (locationQuery.trim() ? undefined : listRouteOrigin?.latitude),
         longitude: searchCoords?.longitude ?? (locationQuery.trim() ? undefined : listRouteOrigin?.longitude),
-        radiusKm,
-        connector: requestedConnector === 'Any' ? undefined : requestedConnector,
-        availableOnly,
-        includeUnknown,
-        minPowerKw: minPowerKw || undefined,
-        maxPrice: maxPrice || undefined,
-        operator: operator || undefined,
-      })
-      const searchStations = uniqueById(search.stations)
-      setSearchResult({ ...search, stations: searchStations })
-      const ranked = await api.recommend({
-        latitude: search.location.latitude,
-        longitude: search.location.longitude,
-        locationLabel: search.location.label,
         radiusKm,
         connector: requestedConnector,
         energyKwh,
@@ -216,12 +197,9 @@ export function ExplorePage({
         routeOriginLongitude: listRouteOrigin?.longitude,
         ...weightSets[priority],
       })
-      const allowed = new Set(searchStations.map((item) => item.id))
-      ranked.ranked = uniqueById(ranked.ranked.filter((item) => allowed.has(item.id)))
-      ranked.recommended = ranked.ranked[0] ?? null
-      ranked.alternatives = ranked.ranked.slice(1, 3)
       setHasSearched(true)
       setAppliedConnector(requestedConnector)
+      setSearchResult(ranked.search)
       setRecommendation(ranked)
       if (ranked.recommended) {
         setMapSelectedId(ranked.recommended.id)

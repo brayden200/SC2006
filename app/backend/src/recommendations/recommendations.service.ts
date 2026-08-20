@@ -16,6 +16,7 @@ export class RecommendationsService {
 
   async recommend(dto: RecommendationDto) {
     const search = await this.stationsService.search({
+      query: dto.query,
       latitude: dto.latitude,
       longitude: dto.longitude,
       radiusKm: dto.radiusKm ?? 8,
@@ -31,7 +32,9 @@ export class RecommendationsService {
         ? { latitude: dto.routeOriginLatitude, longitude: dto.routeOriginLongitude }
         : dto.routeFromCurrentLocation
           ? null
-          : dto
+          : dto.latitude !== undefined && dto.longitude !== undefined
+            ? { latitude: dto.latitude, longitude: dto.longitude }
+            : null
     const routes = new Map<string, RouteResult | null>()
     if (!routeOrigin) {
       search.stations.forEach((station) => routes.set(station.id, null))
@@ -58,16 +61,13 @@ export class RecommendationsService {
       recommended: ranked[0] ?? null,
       alternatives: ranked.slice(1, 3),
       ranked,
-      location: search.location,
-      disclaimer: 'Availability can change before you arrive. Check the latest status before travelling.',
-      scoringModel: {
-        availability: dto.availabilityWeight ?? 30,
-        travelTime: dto.travelWeight ?? 25,
-        chargingSpeed: dto.speedWeight ?? 20,
-        price: dto.priceWeight ?? 15,
-        preference: dto.preferenceWeight ?? 10,
+      search: {
+        totalMatches: search.totalMatches,
+        location: search.location,
+        dataStatus: search.dataStatus,
+        operators: search.operators,
+        suggestions: search.suggestions,
       },
-      dataStatus: search.dataStatus,
     }
   }
 
@@ -80,7 +80,12 @@ export class RecommendationsService {
     if (!connector) throw new BadRequestException('Incompatible station was sent for ranking')
 
     const distanceKm =
-      route?.distanceKm ?? station.distanceKm ?? this.stationsService.distanceKm(dto, station)
+      route?.distanceKm ??
+      station.distanceKm ??
+      this.stationsService.distanceKm(
+        { latitude: dto.latitude ?? 1.2903, longitude: dto.longitude ?? 103.8519 },
+        station,
+      )
     const availability = connector.available === null ? 35 : (connector.available / connector.total) * 100
     const powerKw = connector.powerKw > 0 ? connector.powerKw : null
     const pricePerKwh = station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null
@@ -93,10 +98,7 @@ export class RecommendationsService {
       powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
     const estimatedCost =
       pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2))
-    const arrivalTime = addMinutes(
-      dto.evaluationAt ?? dto.requestTime ?? new Date().toISOString(),
-      travelMinutes,
-    )
+    const arrivalTime = addMinutes(dto.evaluationAt ?? new Date().toISOString(), travelMinutes)
     const parkingEstimate = this.parking?.estimate(station, arrivalTime, estimatedChargeMinutes) ?? {
       estimatedParkingCost: null,
       parkingEstimateStatus: station.parking ? ('rate_only' as const) : ('unavailable' as const),
@@ -164,13 +166,6 @@ export class RecommendationsService {
       estimatedParkingCost: parkingEstimate.estimatedParkingCost,
       estimatedTotalCost,
       parkingEstimateStatus: parkingEstimate.parkingEstimateStatus,
-      scoreBreakdown: {
-        availability: Math.round(availability),
-        travelTime: Math.round(travelTime),
-        chargingSpeed: Math.round(chargingSpeed),
-        price: price === null ? null : Math.round(price),
-        preference: Math.round(preference),
-      },
       reasons: reasons.slice(0, 3),
     }
   }
@@ -213,22 +208,17 @@ export class RecommendationsService {
           name: station.name,
           operator: station.operator,
           connector: connector?.type ?? null,
-          connectorCompatible: Boolean(connector),
           availability: connector?.available ?? null,
-          availabilityStatus: connector?.status ?? 'unknown',
           powerKw,
           estimatedChargeMinutes,
           pricePerKwh,
           estimatedCost,
-          parking: station.parking ?? null,
           parkingRateText: station.parking?.publishedRateText ?? null,
           estimatedParkingCost: parkingEstimate.estimatedParkingCost,
           estimatedTotalCost,
           parkingEstimateStatus: parkingEstimate.parkingEstimateStatus,
-          distanceKm,
           travelMinutes,
           travelSource: route ? 'OneMap' : 'Straight-line estimate',
-          lastUpdated: station.lastUpdated,
         }
       }),
     )

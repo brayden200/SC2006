@@ -50,12 +50,10 @@ export interface RankedStation extends Station {
   estimatedParkingCost: number | null
   estimatedTotalCost: number | null
   parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
-  scoreBreakdown: Record<string, number | null>
   reasons: string[]
 }
 
-export interface SearchResponse {
-  stations: Array<Station & { distanceKm: number }>
+export interface SearchMetadata {
   totalMatches: number
   location: { latitude: number; longitude: number; label: string }
   dataStatus: {
@@ -65,13 +63,13 @@ export interface SearchResponse {
     fallbackReason: string | null
     ltaDataMall: IntegrationProviderStatus
     oneMap: IntegrationProviderStatus
-    parking?: {
-      ura: IntegrationProviderStatus
-      hdb: IntegrationProviderStatus
-    }
   }
   operators: string[]
   suggestions: string[]
+}
+
+export interface SearchResponse extends SearchMetadata {
+  stations: Array<Station & { distanceKm: number }>
 }
 
 export interface IntegrationProviderStatus {
@@ -86,8 +84,7 @@ export interface RecommendationResponse {
   recommended: RankedStation | null
   alternatives: RankedStation[]
   ranked: RankedStation[]
-  disclaimer: string
-  dataStatus: SearchResponse['dataStatus']
+  search: SearchMetadata
 }
 
 export type RouteCoordinate = [latitude: number, longitude: number]

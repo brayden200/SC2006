@@ -83,7 +83,6 @@ describe('RecommendationsService parking costs', () => {
       connector: 'CCS2',
     })
     expect(ranked.estimatedTotalCost).toBeNull()
-    expect(ranked.scoreBreakdown.price).toBeNull()
     const comparison = await service.compare({ stationIds: ['a', 'b'], connector: 'CCS2', energyKwh: 35 })
     expect(comparison.options.find((item) => item.id === 'b')?.estimatedTotalCost).toBeNull()
     expect(comparison.highlights.estimatedTotalCost.best).toEqual(['a'])

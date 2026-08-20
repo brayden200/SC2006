@@ -7,7 +7,3 @@ export const timeAgo = (value: string) => {
   if (minutes < 60) return `${minutes}m ago`
   return `${Math.round(minutes / 60)}h ago`
 }
-export const toLocalInput = (date = new Date(Date.now() + 60 * 60_000)) => {
-  const offset = date.getTimezoneOffset()
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16)
-}

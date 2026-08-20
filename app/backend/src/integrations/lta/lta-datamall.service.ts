@@ -68,18 +68,6 @@ export class LtaDataMallService {
     }
   }
 
-  async getStationsByPostalCode(postalCode: string): Promise<Station[]> {
-    const accountKey = this.config.get<string>('LTA_ACCOUNT_KEY')
-    if (!accountKey) throw new Error('LTA_ACCOUNT_KEY is not configured')
-    const url = new URL(`${this.baseUrl}/EVChargingPoints`)
-    url.searchParams.set('PostalCode', postalCode)
-    const payload = await this.fetchJson(url.toString(), {
-      AccountKey: accountKey,
-      Accept: 'application/json',
-    })
-    return this.normalizePayload(payload, new Date().toISOString())
-  }
-
   normalizePayload(payload: unknown, fetchedAt = new Date().toISOString()): Station[] {
     const records = this.extractRecords(payload)
     return records
