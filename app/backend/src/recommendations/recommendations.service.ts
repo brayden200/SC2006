@@ -24,21 +24,27 @@ export class RecommendationsService {
       includeUnknown: dto.includeUnknown ?? false,
       operator: dto.operator,
     })
-    const ranked = (
-      await Promise.all(
-        search.stations.map(async (station, index) => {
-          let route: RouteResult | null = null
-          if (index < 8) {
-            try {
-              route = await this.oneMap.drivingRoute(dto, station)
-            } catch {
-              route = null
-            }
-          }
-          return this.rankStation(station, dto, route)
-        }),
-      )
-    ).sort((a, b) => b.score - a.score)
+    const routeOrigin =
+      dto.routeOriginLatitude !== undefined && dto.routeOriginLongitude !== undefined
+        ? { latitude: dto.routeOriginLatitude, longitude: dto.routeOriginLongitude }
+        : dto.routeFromCurrentLocation
+          ? null
+          : dto
+    const routes = new Map<string, RouteResult | null>()
+    for (const station of search.stations) {
+      if (!routeOrigin) {
+        routes.set(station.id, null)
+        continue
+      }
+      try {
+        routes.set(station.id, await this.oneMap.drivingRoute(routeOrigin, station))
+      } catch {
+        routes.set(station.id, null)
+      }
+    }
+    const ranked = search.stations
+      .map((station) => this.rankStation(station, dto, routes.get(station.id) ?? null))
+      .sort((a, b) => b.score - a.score)
 
     return {
       recommended: ranked[0] ?? null,

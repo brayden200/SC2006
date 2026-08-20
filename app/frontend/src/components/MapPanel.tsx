@@ -26,6 +26,7 @@ interface MapPanelProps {
   selectedId?: string
   onSelect: (station: RankedStation) => void
   location: MapLocation
+  routeOrigin?: MapLocation
   currentLocation?: Pick<MapLocation, 'latitude' | 'longitude'> & { accuracy: number }
   route?: DrivingRoute | null
   routeStation?: RankedStation | null
@@ -37,6 +38,7 @@ function MapViewport({
   stations,
   location,
   route,
+  routeOrigin,
   routeStation,
   routeLoading,
   routeError,
@@ -44,6 +46,7 @@ function MapViewport({
   stations: RankedStation[]
   location: MapLocation
   route?: DrivingRoute | null
+  routeOrigin?: MapLocation
   routeStation?: RankedStation | null
   routeLoading?: boolean
   routeError?: string
@@ -51,15 +54,16 @@ function MapViewport({
   const map = useMap()
 
   useEffect(() => {
-    const routePoints = routeStation
-      ? [
-          [location.latitude, location.longitude] as [number, number],
-          ...((route?.coordinates ?? []) as [number, number][]),
-          [routeStation.latitude, routeStation.longitude] as [number, number],
-        ]
-      : []
+    const routePoints =
+      routeStation && routeOrigin
+        ? [
+            [routeOrigin.latitude, routeOrigin.longitude] as [number, number],
+            ...((route?.coordinates ?? []) as [number, number][]),
+            [routeStation.latitude, routeStation.longitude] as [number, number],
+          ]
+        : []
     const points: [number, number][] =
-      routeStation && (routeLoading || route || routeError)
+      routeStation && routeOrigin && (routeLoading || route || routeError)
         ? routePoints
         : [
             [location.latitude, location.longitude],
@@ -76,7 +80,17 @@ function MapViewport({
       maxZoom: 15,
       padding: [46, 46],
     })
-  }, [location.latitude, location.longitude, map, route, routeError, routeLoading, routeStation, stations])
+  }, [
+    location.latitude,
+    location.longitude,
+    map,
+    route,
+    routeError,
+    routeLoading,
+    routeOrigin,
+    routeStation,
+    stations,
+  ])
 
   return null
 }
@@ -97,6 +111,7 @@ export function MapPanel({
   selectedId,
   onSelect,
   location,
+  routeOrigin,
   currentLocation,
   route,
   routeStation,
@@ -158,6 +173,7 @@ export function MapPanel({
         <MapViewport
           stations={stations}
           location={location}
+          routeOrigin={routeOrigin}
           route={route}
           routeStation={routeStation}
           routeLoading={routeLoading}

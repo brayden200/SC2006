@@ -4,6 +4,9 @@ import { IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } fr
 export class RecommendationDto {
   @Type(() => Number) @IsNumber() latitude!: number
   @Type(() => Number) @IsNumber() longitude!: number
+  @IsOptional() @IsBoolean() routeFromCurrentLocation?: boolean
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(-90) @Max(90) routeOriginLatitude?: number
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(-180) @Max(180) routeOriginLongitude?: number
   @IsOptional() @IsString() locationLabel?: string
   @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO']) connector!: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO'
   @IsOptional() @Type(() => Number) @Min(1) @Max(50) radiusKm?: number = 8

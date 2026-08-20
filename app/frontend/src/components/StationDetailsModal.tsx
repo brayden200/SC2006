@@ -4,43 +4,29 @@ import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
 import type { ConnectorType, RankedStation } from '../types'
 import { Modal } from './Modal'
 
-export function buildGoogleMapsDrivingUrl(
-  origin: { latitude: number; longitude: number },
-  destination: { latitude: number; longitude: number },
-) {
-  const params = new URLSearchParams({
-    api: '1',
-    origin: `${origin.latitude},${origin.longitude}`,
-    destination: `${destination.latitude},${destination.longitude}`,
-    travelmode: 'driving',
-  })
-  return `https://www.google.com/maps/dir/?${params}`
+export function getRouteButtonLabel(routeVisible: boolean) {
+  return routeVisible ? 'Change route' : 'Show route'
 }
 
 export function StationDetailsModal({
   station,
   connector,
-  origin,
   onClose,
   onMonitor,
-  onSelectRoute,
+  onShowRoute,
+  routeVisible = false,
   routeLoading = false,
   routeError = '',
 }: {
   station: RankedStation
   connector: ConnectorType
-  origin: { latitude: number; longitude: number }
   onClose: () => void
   onMonitor: () => void
-  onSelectRoute?: () => void
+  onShowRoute: () => void
+  routeVisible?: boolean
   routeLoading?: boolean
   routeError?: string
 }) {
-  const openDirections = () => {
-    onSelectRoute?.()
-    window.open(buildGoogleMapsDrivingUrl(origin, station), '_blank', 'noopener,noreferrer')
-  }
-
   return (
     <Modal title={station.name} subtitle={`${station.operator} · ${station.postalCode}`} onClose={onClose}>
       <div className="detail-hero">
@@ -55,10 +41,11 @@ export function StationDetailsModal({
           variant="light"
           size="xs"
           leftSection={<Navigation size={16} />}
-          onClick={openDirections}
-          aria-label={`Get driving directions to ${station.name}`}
+          onClick={onShowRoute}
+          loading={routeLoading}
+          aria-label={`${getRouteButtonLabel(routeVisible)} for ${station.name}`}
         >
-          Directions
+          {getRouteButtonLabel(routeVisible)}
         </Button>
       </div>
       <h3 className="section-mini-title">Charging connectors</h3>

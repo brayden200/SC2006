@@ -38,8 +38,9 @@ describe('RecommendationsService', () => {
     getAllStations: jest.fn().mockResolvedValue(stationsFixture),
     status: () => ({ state: 'available', lastSuccessfulFetch: '2026-08-19T12:00:00.000Z' }),
   } as unknown as LtaDataMallService
+  const drivingRoute = jest.fn().mockRejectedValue(new Error('Routing unavailable'))
   const oneMap = {
-    drivingRoute: jest.fn().mockRejectedValue(new Error('Routing unavailable')),
+    drivingRoute,
     status: () => ({ state: 'error' }),
   } as unknown as OneMapService
   const stations = new StationsService(lta, oneMap)
@@ -70,6 +71,59 @@ describe('RecommendationsService', () => {
     result.ranked.forEach((station) => {
       expect(station.connectors.some((connector) => connector.type === station.selectedConnector)).toBe(true)
     })
+  })
+
+  it('queries OneMap road times before returning the station list', async () => {
+    drivingRoute.mockClear()
+    drivingRoute.mockResolvedValue({
+      travelMinutes: 7,
+      distanceKm: 2.1,
+      coordinates: [
+        [1.3048, 103.8318],
+        [1.305, 103.832],
+      ],
+      source: 'OneMap',
+    })
+
+    const result = await service.recommend({
+      latitude: 1.3048,
+      longitude: 103.8318,
+      connector: 'Any',
+      radiusKm: 30,
+    })
+
+    expect(drivingRoute).toHaveBeenCalledTimes(stationsFixture.length)
+    expect(result.ranked.every((station) => station.travelSource === 'OneMap')).toBe(true)
+    expect(result.ranked.every((station) => station.travelMinutes === 7)).toBe(true)
+    drivingRoute.mockRejectedValue(new Error('Routing unavailable'))
+  })
+
+  it('uses the supplied current location as the OneMap route origin', async () => {
+    drivingRoute.mockClear()
+    drivingRoute.mockResolvedValue({
+      travelMinutes: 5,
+      distanceKm: 1.4,
+      coordinates: [
+        [1.31, 103.84],
+        [1.3048, 103.8318],
+      ],
+      source: 'OneMap',
+    })
+
+    await service.recommend({
+      latitude: 1.3048,
+      longitude: 103.8318,
+      routeOriginLatitude: 1.31,
+      routeOriginLongitude: 103.84,
+      connector: 'Any',
+      radiusKm: 30,
+    })
+
+    expect(drivingRoute).toHaveBeenCalledWith(
+      { latitude: 1.31, longitude: 103.84 },
+      expect.objectContaining({ id: stationsFixture[0].id }),
+    )
+    drivingRoute.mockRejectedValue(new Error('Routing unavailable'))
   })
 
   it('compares stations using each station’s selected connector in Any mode', async () => {

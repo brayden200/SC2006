@@ -15,6 +15,17 @@ interface Props {
   onHover: () => void
 }
 
+export function getCardRoadTravel(
+  station: Pick<RankedStation, 'distanceKm' | 'travelMinutes' | 'travelSource'>,
+) {
+  const hasOneMapRoute = station.travelSource === 'OneMap' && station.travelMinutes !== null
+  return {
+    distanceLabel: hasOneMapRoute ? `${station.distanceKm.toFixed(1)} km road` : '',
+    minutesLabel: hasOneMapRoute ? `${station.travelMinutes} min` : '—',
+    sourceLabel: hasOneMapRoute ? 'OneMap road route' : 'Road route unavailable',
+  }
+}
+
 export function StationCard({
   station,
   connector,
@@ -31,6 +42,7 @@ export function StationCard({
   const plug = station.connectors.find((item) => item.type === selectedConnector)
   if (!plug) return null
   const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0
+  const roadTravel = getCardRoadTravel(station)
   return (
     <article className={`station-card ${best ? 'best-station' : ''}`} onMouseEnter={onHover}>
       {best && (
@@ -43,7 +55,8 @@ export function StationCard({
         <div className="station-title">
           <h3>{station.name}</h3>
           <p>
-            <MapPin size={14} /> {station.address} · {station.distanceKm.toFixed(1)} km
+            <MapPin size={14} /> {station.address}
+            {roadTravel.distanceLabel ? ` · ${roadTravel.distanceLabel}` : ''}
           </p>
         </div>
         <div className="score-ring">
@@ -71,12 +84,8 @@ export function StationCard({
         </div>
         <div>
           <Clock3 size={17} />
-          <b>{station.travelMinutes ?? '—'} min</b>
-          <small>
-            {station.travelSource === 'OneMap'
-              ? 'OneMap road route'
-              : `${station.distanceKm.toFixed(1)} km straight-line estimate · not road time`}
-          </small>
+          <b>{roadTravel.minutesLabel}</b>
+          <small>{roadTravel.sourceLabel}</small>
         </div>
         <div>
           <BatteryCharging size={17} />

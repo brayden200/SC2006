@@ -86,21 +86,36 @@ export function ExplorePage({
     accuracy: number
   } | null>(null)
 
-  const loadRoute = async (
-    station: RankedStation,
-    origin: { latitude: number; longitude: number } | undefined = searchResult?.location,
-  ) => {
+  const requestCurrentLocation = () =>
+    new Promise<{ latitude: number; longitude: number; accuracy: number }>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Current location is unavailable. Allow location access to show a route.'))
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const nextLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          }
+          setCurrentLocation(nextLocation)
+          resolve(nextLocation)
+        },
+        () => reject(new Error('Allow location access to show a route from your current location.')),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+      )
+    })
+
+  const loadRoute = async (station: RankedStation) => {
     const requestId = ++routeRequestId.current
     setRouteStationId(station.id)
     setRoute(null)
     setRouteError('')
-    if (!origin) {
-      setRouteError('The search origin is unavailable.')
-      return
-    }
 
     setRouteLoading(true)
     try {
+      const origin = await requestCurrentLocation()
       const nextRoute = await api.getDrivingRoute(origin, station)
       if (requestId === routeRequestId.current) {
         setRoute(nextRoute)
@@ -138,13 +153,17 @@ export function ExplorePage({
   }
 
   const selectStation = (station: RankedStation, openDetails = true) => {
+    routeRequestId.current += 1
     setMapSelectedId(station.id)
     if (openDetails) setDetails(station)
-    void loadRoute(station)
+    setRoute(null)
+    setRouteStationId(undefined)
+    setRouteLoading(false)
+    setRouteError('')
   }
 
   const runSearch = async () => {
-    if (!locationQuery.trim() && !searchCoords) {
+    if (!locationQuery.trim() && !searchCoords && !navigator.geolocation) {
       setError('Enter an address or postal code, or use your current location.')
       return
     }
@@ -158,10 +177,17 @@ export function ExplorePage({
     setRouteLoading(false)
     setRouteError('')
     try {
+      let listRouteOrigin: { latitude: number; longitude: number } | null = null
+      try {
+        const current = await requestCurrentLocation()
+        listRouteOrigin = { latitude: current.latitude, longitude: current.longitude }
+      } catch (reason) {
+        if (!locationQuery.trim() && !searchCoords) throw reason
+      }
       const search = await api.searchStations({
         query: locationQuery,
-        latitude: searchCoords?.latitude,
-        longitude: searchCoords?.longitude,
+        latitude: searchCoords?.latitude ?? (locationQuery.trim() ? undefined : listRouteOrigin?.latitude),
+        longitude: searchCoords?.longitude ?? (locationQuery.trim() ? undefined : listRouteOrigin?.longitude),
         radiusKm,
         connector: requestedConnector === 'Any' ? undefined : requestedConnector,
         availableOnly,
@@ -185,6 +211,9 @@ export function ExplorePage({
         includeUnknown,
         operator: operator || undefined,
         preferredOperator: operator || undefined,
+        routeFromCurrentLocation: true,
+        routeOriginLatitude: listRouteOrigin?.latitude,
+        routeOriginLongitude: listRouteOrigin?.longitude,
         ...weightSets[priority],
       })
       const allowed = new Set(searchStations.map((item) => item.id))
@@ -196,7 +225,6 @@ export function ExplorePage({
       setRecommendation(ranked)
       if (ranked.recommended) {
         setMapSelectedId(ranked.recommended.id)
-        void loadRoute(ranked.recommended, search.location)
       }
       notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`)
     } catch (reason) {
@@ -207,32 +235,21 @@ export function ExplorePage({
   }
 
   const useMyLocation = () => {
-    if (!navigator.geolocation) {
-      setError('Location is unavailable. Enter an address or postal code instead.')
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextLocation = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        }
-        setCurrentLocation(nextLocation)
+    void requestCurrentLocation()
+      .then((nextLocation) => {
         setSearchCoords({ latitude: nextLocation.latitude, longitude: nextLocation.longitude })
         setLocationQuery('My current location')
         notify(
           `Current location found (about ${Math.round(nextLocation.accuracy)} m accuracy) — press Search to refresh`,
         )
-      },
-      () => setError('Location permission was denied. Enter an address or Singapore postal code instead.'),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
-    )
+      })
+      .catch((reason) => setError((reason as Error).message))
   }
 
   const ranked = recommendation?.ranked ?? []
   const compared = ranked.filter((item) => compareIds.includes(item.id))
   const routeStation = ranked.find((item) => item.id === routeStationId) ?? null
+  const routeOrigin = currentLocation ?? undefined
   const toggleCompare = (id: string) => {
     if (compareIds.includes(id)) setCompareIds((items) => items.filter((item) => item !== id))
     else if (compareIds.length < 4) setCompareIds((items) => [...items, id])
@@ -465,6 +482,7 @@ export function ExplorePage({
                 }}
                 location={searchResult!.location}
                 currentLocation={currentLocation ?? undefined}
+                routeOrigin={routeOrigin}
                 route={route}
                 routeStation={routeStation}
                 routeLoading={routeLoading}
@@ -546,10 +564,10 @@ export function ExplorePage({
         <StationDetailsModal
           station={details}
           connector={details.selectedConnector}
-          origin={searchResult!.location}
           onClose={() => setDetails(null)}
           onMonitor={() => void monitor(details)}
-          onSelectRoute={() => selectStation(details, false)}
+          onShowRoute={() => void loadRoute(details)}
+          routeVisible={routeStationId === details.id && route !== null}
           routeLoading={routeStationId === details.id && routeLoading}
           routeError={routeStationId === details.id ? routeError : ''}
         />
