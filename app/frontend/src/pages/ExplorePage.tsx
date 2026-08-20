@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   ActionIcon,
   Alert,
@@ -78,6 +78,7 @@ export function ExplorePage({
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState('')
   const [compareIds, setCompareIds] = useState<string[]>([])
+  const compareIdsRef = useRef(compareIds)
   const [showComparison, setShowComparison] = useState(false)
   const [details, setDetails] = useState<RankedStation | null>(null)
   const [mapSelectedId, setMapSelectedId] = useState<string>()
@@ -93,73 +94,79 @@ export function ExplorePage({
     accuracy: number
   } | null>(null)
 
-  const requestCurrentLocation = () =>
-    new Promise<{ latitude: number; longitude: number; accuracy: number }>((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Current location is unavailable. Allow location access to show a route.'))
-        return
-      }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const nextLocation = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          }
-          setCurrentLocation(nextLocation)
-          resolve(nextLocation)
-        },
-        () => reject(new Error('Allow location access to show a route from your current location.')),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
-      )
-    })
-
-  const loadRoute = async (station: RankedStation) => {
-    const requestId = ++routeRequestId.current
-    setRouteStationId(station.id)
-    setRoute(null)
-    setRouteError('')
-
-    setRouteLoading(true)
-    try {
-      const origin = await requestCurrentLocation()
-      const nextRoute = await api.getDrivingRoute(origin, station)
-      if (requestId === routeRequestId.current) {
-        setRoute(nextRoute)
-        const routeMetrics = {
-          distanceKm: nextRoute.distanceKm,
-          travelMinutes: nextRoute.travelMinutes,
-          travelSource: 'OneMap' as const,
+  const requestCurrentLocation = useCallback(
+    () =>
+      new Promise<{ latitude: number; longitude: number; accuracy: number }>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Current location is unavailable. Allow location access to show a route.'))
+          return
         }
-        setRecommendation((current) => {
-          if (!current) return current
-          const ranked = current.ranked.map((item) =>
-            item.id === station.id ? { ...item, ...routeMetrics } : item,
-          )
-          return {
-            ...current,
-            ranked,
-            recommended:
-              current.recommended?.id === station.id
-                ? { ...current.recommended, ...routeMetrics }
-                : current.recommended,
-            alternatives: current.alternatives.map((item) =>
-              item.id === station.id ? { ...item, ...routeMetrics } : item,
-            ),
-          }
-        })
-        setDetails((current) => (current?.id === station.id ? { ...current, ...routeMetrics } : current))
-      }
-    } catch (reason) {
-      if (requestId === routeRequestId.current) {
-        setRouteError((reason as Error).message || 'OneMap could not return a road route.')
-      }
-    } finally {
-      if (requestId === routeRequestId.current) setRouteLoading(false)
-    }
-  }
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const nextLocation = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            }
+            setCurrentLocation(nextLocation)
+            resolve(nextLocation)
+          },
+          () => reject(new Error('Allow location access to show a route from your current location.')),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+        )
+      }),
+    [],
+  )
 
-  const selectStation = (station: RankedStation, openDetails = true) => {
+  const loadRoute = useCallback(
+    async (station: RankedStation) => {
+      const requestId = ++routeRequestId.current
+      setRouteStationId(station.id)
+      setRoute(null)
+      setRouteError('')
+
+      setRouteLoading(true)
+      try {
+        const origin = await requestCurrentLocation()
+        const nextRoute = await api.getDrivingRoute(origin, station)
+        if (requestId === routeRequestId.current) {
+          setRoute(nextRoute)
+          const routeMetrics = {
+            distanceKm: nextRoute.distanceKm,
+            travelMinutes: nextRoute.travelMinutes,
+            travelSource: 'OneMap' as const,
+          }
+          setRecommendation((current) => {
+            if (!current) return current
+            const ranked = current.ranked.map((item) =>
+              item.id === station.id ? { ...item, ...routeMetrics } : item,
+            )
+            return {
+              ...current,
+              ranked,
+              recommended:
+                current.recommended?.id === station.id
+                  ? { ...current.recommended, ...routeMetrics }
+                  : current.recommended,
+              alternatives: current.alternatives.map((item) =>
+                item.id === station.id ? { ...item, ...routeMetrics } : item,
+              ),
+            }
+          })
+          setDetails((current) => (current?.id === station.id ? { ...current, ...routeMetrics } : current))
+        }
+      } catch (reason) {
+        if (requestId === routeRequestId.current) {
+          setRouteError((reason as Error).message || 'OneMap could not return a road route.')
+        }
+      } finally {
+        if (requestId === routeRequestId.current) setRouteLoading(false)
+      }
+    },
+    [requestCurrentLocation],
+  )
+
+  const selectStation = useCallback((station: RankedStation, openDetails = true) => {
     routeRequestId.current += 1
     setMapSelectedId(station.id)
     if (openDetails) setDetails(station)
@@ -167,7 +174,7 @@ export function ExplorePage({
     setRouteStationId(undefined)
     setRouteLoading(false)
     setRouteError('')
-  }
+  }, [])
 
   const runSearch = async () => {
     if (!locationQuery.trim() && !searchCoords && !navigator.geolocation) {
@@ -177,6 +184,7 @@ export function ExplorePage({
     const requestedConnector = connector
     setLoading(true)
     setError('')
+    compareIdsRef.current = []
     setCompareIds([])
     routeRequestId.current += 1
     setRoute(null)
@@ -240,28 +248,48 @@ export function ExplorePage({
   const compared = ranked.filter((item) => compareIds.includes(item.id))
   const routeStation = ranked.find((item) => item.id === routeStationId) ?? null
   const routeOrigin = currentLocation ?? undefined
-  const toggleCompare = (id: string) => {
-    if (compareIds.includes(id)) setCompareIds((items) => items.filter((item) => item !== id))
-    else if (compareIds.length < 4) setCompareIds((items) => [...items, id])
-    else notify('You can compare up to four stations at once')
-  }
-  const monitor = async (station: Station) => {
-    const selectedConnector =
-      station.selectedConnector ??
-      (appliedConnector === 'Any' ? station.connectors[0]?.type : appliedConnector)
-    if (!selectedConnector) {
-      notify('No compatible connector is available at this station')
-      return
-    }
-    try {
-      await api.createMonitor(station.id, selectedConnector)
-      notify(`Monitoring ${station.name} (${selectedConnector}) for 90 minutes`)
-      setDetails(null)
-      navigate('monitoring')
-    } catch (reason) {
-      notify((reason as Error).message)
-    }
-  }
+  const toggleCompare = useCallback(
+    (id: string) => {
+      const current = compareIdsRef.current
+      if (current.includes(id)) {
+        const next = current.filter((item) => item !== id)
+        compareIdsRef.current = next
+        setCompareIds(next)
+      } else if (current.length < 4) {
+        const next = [...current, id]
+        compareIdsRef.current = next
+        setCompareIds(next)
+      } else {
+        notify('You can compare up to four stations at once')
+      }
+    },
+    [notify],
+  )
+  const selectMapStation = useCallback((id: string) => setMapSelectedId(id), [])
+  const clearCompare = useCallback(() => {
+    compareIdsRef.current = []
+    setCompareIds([])
+  }, [])
+  const monitor = useCallback(
+    async (station: Station) => {
+      const selectedConnector =
+        station.selectedConnector ??
+        (appliedConnector === 'Any' ? station.connectors[0]?.type : appliedConnector)
+      if (!selectedConnector) {
+        notify('No compatible connector is available at this station')
+        return
+      }
+      try {
+        await api.createMonitor(station.id, selectedConnector)
+        notify(`Monitoring ${station.name} (${selectedConnector}) for 90 minutes`)
+        setDetails(null)
+        navigate('monitoring')
+      } catch (reason) {
+        notify((reason as Error).message)
+      }
+    },
+    [appliedConnector, navigate, notify],
+  )
 
   return (
     <div className="page explore-page">
@@ -421,7 +449,7 @@ export function ExplorePage({
         )
       )}
 
-      {loading ? (
+      {loading && ranked.length === 0 ? (
         <div className="page-loading">
           <Loader size="md" />
           <h3>Ranking compatible chargers…</h3>
@@ -455,10 +483,10 @@ export function ExplorePage({
                   rank={index + 1}
                   best={index === 0}
                   compared={compareIds.includes(station.id)}
-                  onCompare={() => toggleCompare(station.id)}
-                  onDetails={() => selectStation(station)}
-                  onMonitor={() => void monitor(station)}
-                  onHover={() => setMapSelectedId(station.id)}
+                  onCompare={toggleCompare}
+                  onDetails={selectStation}
+                  onMonitor={monitor}
+                  onHover={selectMapStation}
                 />
               ))}
             </Stack>
@@ -467,9 +495,7 @@ export function ExplorePage({
                 stations={ranked}
                 connector={appliedConnector}
                 selectedId={mapSelectedId}
-                onSelect={(station) => {
-                  selectStation(station)
-                }}
+                onSelect={selectStation}
                 location={searchResult!.location}
                 currentLocation={currentLocation ?? undefined}
                 routeOrigin={routeOrigin}
@@ -528,7 +554,7 @@ export function ExplorePage({
               <small>Choose 2–4 stations</small>
             </div>
           </div>
-          <Button variant="subtle" size="compact-sm" onClick={() => setCompareIds([])}>
+          <Button variant="subtle" size="compact-sm" onClick={clearCompare}>
             Clear
           </Button>
           <Button disabled={compareIds.length < 2} onClick={() => setShowComparison(true)}>

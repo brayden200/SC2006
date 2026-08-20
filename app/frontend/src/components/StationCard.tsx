@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Badge, Button, Card } from '@mantine/core'
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react'
 import { formatPrice, timeAgo } from '../lib'
@@ -9,10 +10,10 @@ interface Props {
   rank: number
   best?: boolean
   compared: boolean
-  onCompare: () => void
-  onDetails: () => void
-  onMonitor: () => void
-  onHover: () => void
+  onCompare: (id: string) => void
+  onDetails: (station: RankedStation) => void
+  onMonitor: (station: RankedStation) => void
+  onHover: (id: string) => void
 }
 
 export function getCardRoadTravel(
@@ -26,7 +27,7 @@ export function getCardRoadTravel(
   }
 }
 
-export function StationCard({
+export const StationCard = memo(function StationCard({
   station,
   connector,
   rank,
@@ -47,7 +48,7 @@ export function StationCard({
     <Card
       component="article"
       className={`station-card ${best ? 'best-station' : ''}`}
-      onMouseEnter={onHover}
+      onMouseEnter={() => onHover(station.id)}
       padding={0}
     >
       {best && (
@@ -134,17 +135,22 @@ export function StationCard({
           variant={compared ? 'light' : 'default'}
           size="xs"
           leftSection={<Scale size={16} />}
-          onClick={onCompare}
+          onClick={() => onCompare(station.id)}
         >
           {compared ? 'Selected' : 'Compare'}
         </Button>
-        <Button variant="subtle" size="xs" rightSection={<ChevronRight size={15} />} onClick={onDetails}>
+        <Button
+          variant="subtle"
+          size="xs"
+          rightSection={<ChevronRight size={15} />}
+          onClick={() => onDetails(station)}
+        >
           Details
         </Button>
-        <Button variant="light" size="xs" onClick={onMonitor}>
+        <Button variant="light" size="xs" onClick={() => onMonitor(station)}>
           Monitor
         </Button>
       </div>
     </Card>
   )
-}
+})

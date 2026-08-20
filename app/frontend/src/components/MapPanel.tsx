@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { ActionIcon } from '@mantine/core'
 import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet'
 import {
@@ -54,23 +54,27 @@ function MapViewport({
 }) {
   const map = useMap()
 
-  useEffect(() => {
-    const routePoints =
-      routeStation && routeOrigin
-        ? [
-            [routeOrigin.latitude, routeOrigin.longitude] as [number, number],
-            ...((route?.coordinates ?? []) as [number, number][]),
-            [routeStation.latitude, routeStation.longitude] as [number, number],
-          ]
-        : []
-    const points: [number, number][] =
-      routeStation && routeOrigin && (routeLoading || route || routeError)
-        ? routePoints
-        : [
-            [location.latitude, location.longitude],
-            ...stations.map((station) => [station.latitude, station.longitude] as [number, number]),
-          ]
+  const routePoints =
+    routeStation && routeOrigin
+      ? [
+          [routeOrigin.latitude, routeOrigin.longitude] as [number, number],
+          ...((route?.coordinates ?? []) as [number, number][]),
+          [routeStation.latitude, routeStation.longitude] as [number, number],
+        ]
+      : []
+  const points: [number, number][] =
+    routeStation && routeOrigin && (routeLoading || route || routeError)
+      ? routePoints
+      : [
+          [location.latitude, location.longitude],
+          ...stations.map((station) => [station.latitude, station.longitude] as [number, number]),
+        ]
+  // Parent state changes frequently while a route loads. Depend on the effective
+  // viewport instead of object identities/status flags so identical bounds are
+  // not fitted repeatedly, which otherwise makes Leaflet reload the same tiles.
+  const viewportKey = points.map(([latitude, longitude]) => `${latitude},${longitude}`).join('|')
 
+  useEffect(() => {
     if (points.length === 1) {
       map.setView(points[0], 15)
       return
@@ -81,17 +85,10 @@ function MapViewport({
       maxZoom: 15,
       padding: [46, 46],
     })
-  }, [
-    location.latitude,
-    location.longitude,
-    map,
-    route,
-    routeError,
-    routeLoading,
-    routeOrigin,
-    routeStation,
-    stations,
-  ])
+    // `viewportKey` fully represents `points`; using it prevents refits when
+    // React recreates station or route objects without changing coordinates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, viewportKey])
 
   return null
 }
@@ -106,7 +103,7 @@ function stationIcon(rank: number, available: boolean, selected: boolean) {
   })
 }
 
-export function MapPanel({
+export const MapPanel = memo(function MapPanel({
   stations,
   connector,
   selectedId,
@@ -311,4 +308,4 @@ export function MapPanel({
       </div>
     </div>
   )
-}
+})
