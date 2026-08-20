@@ -10,6 +10,7 @@ import type {
 import { svy21ToWgs84 } from '../svy21.util'
 
 const URA_DETAILS_URL = 'https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=Car_Park_Details'
+const ZERO_RATE_BILLING_UNIT_MINUTES = 30
 
 @Injectable()
 export class UraParkingService implements ParkingProvider {
@@ -137,8 +138,9 @@ export class UraParkingService implements ParkingProvider {
   private rulesFor(item: Record<string, unknown>): ParkingTariffRule[] {
     const startMinute = parseTime(item.startTime) ?? 0
     const endMinute = parseTime(item.endTime) ?? 1440
-    const unit = parseBillingMinutes(item.weekdayMin ?? item.satdayMin ?? item.sunPHMin)
-    if (!unit) return []
+    const unit = [item.weekdayMin, item.satdayMin, item.sunPHMin]
+      .map(parseBillingMinutes)
+      .find((value): value is number => value !== null)
     const entries: Array<{ days: ParkingTariffRule['days']; rate: unknown; min: unknown }> = [
       { days: ['weekday'], rate: item.weekdayRate, min: item.weekdayMin },
       { days: ['saturday'], rate: item.satdayRate, min: item.satdayMin },
@@ -146,7 +148,8 @@ export class UraParkingService implements ParkingProvider {
     ]
     return entries.flatMap(({ days, rate, min }) => {
       const parsedRate = parseRate(rate)
-      const parsedUnit = parseBillingMinutes(min) ?? unit
+      const parsedUnit =
+        parseBillingMinutes(min) ?? (parsedRate === 0 ? (unit ?? ZERO_RATE_BILLING_UNIT_MINUTES) : unit)
       return parsedRate === null || !parsedUnit
         ? []
         : [
@@ -163,14 +166,31 @@ export class UraParkingService implements ParkingProvider {
   }
 
   private rateText(item: Record<string, unknown>) {
-    const parts = [
-      this.string(item.weekdayRate) &&
-        `Weekday ${this.string(item.weekdayRate)} per ${this.string(item.weekdayMin) || 'published unit'}`,
-      this.string(item.satdayRate) &&
-        `Saturday ${this.string(item.satdayRate)} per ${this.string(item.satdayMin) || 'published unit'}`,
-      this.string(item.sunPHRate) &&
-        `Sunday/public holiday ${this.string(item.sunPHRate)} per ${this.string(item.sunPHMin) || 'published unit'}`,
-    ].filter(Boolean)
+    const startMinute = parseTime(item.startTime)
+    const endMinute = parseTime(item.endTime)
+    const timeBand = formatTimeBand(startMinute, endMinute)
+    const entries = [
+      { day: 'Weekdays', rate: item.weekdayRate, min: item.weekdayMin },
+      { day: 'Saturdays', rate: item.satdayRate, min: item.satdayMin },
+      { day: 'Sundays/public holidays', rate: item.sunPHRate, min: item.sunPHMin },
+    ]
+      .map(({ day, rate, min }) => {
+        const description = formatRateDescription(rate, min)
+        return description ? { day, description } : null
+      })
+      .filter((entry): entry is { day: string; description: string } => entry !== null)
+
+    const grouped = new Map<string, { days: string[]; description: string }>()
+    entries.forEach(({ day, description }) => {
+      const key = `${timeBand}|${description}`
+      const existing = grouped.get(key)
+      if (existing) existing.days.push(day)
+      else grouped.set(key, { days: [day], description })
+    })
+
+    const parts = [...grouped.values()].map(
+      ({ days, description }) => `${joinDayLabels(days)}${timeBand ? ` ${timeBand}` : ''}: ${description}`,
+    )
     return parts.join('; ') || 'Published rate is unavailable for calculation.'
   }
 
@@ -188,6 +208,44 @@ export class UraParkingService implements ParkingProvider {
   private string(value: unknown) {
     return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : ''
   }
+}
+
+function formatRateDescription(rate: unknown, min: unknown) {
+  const rawRate = typeof rate === 'string' || typeof rate === 'number' ? String(rate).trim() : ''
+  if (!rawRate) return ''
+  const parsedRate = parseRate(rate)
+  if (parsedRate === 0) return 'Free'
+  const billingMinutes = parseBillingMinutes(min)
+  if (billingMinutes) return `${rawRate} per ${formatDuration(billingMinutes)}`
+  return `${rawRate} (published billing period unavailable)`
+}
+
+function formatDuration(minutes: number) {
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60
+    return `${hours} hour${hours === 1 ? '' : 's'}`
+  }
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`
+}
+
+function formatTimeBand(startMinute: number | null, endMinute: number | null) {
+  if (startMinute === null || endMinute === null) return ''
+  if (startMinute === endMinute) return 'all day'
+  return `${formatClock(startMinute)}–${formatClock(endMinute)}`
+}
+
+function formatClock(minuteOfDay: number) {
+  const hour24 = Math.floor(minuteOfDay / 60) % 24
+  const minute = minuteOfDay % 60
+  const suffix = hour24 >= 12 ? 'PM' : 'AM'
+  const hour12 = hour24 % 12 || 12
+  return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`
+}
+
+function joinDayLabels(days: string[]) {
+  if (days.length <= 1) return days[0] ?? ''
+  if (days.length === 2) return `${days[0]} and ${days[1]}`
+  return `${days.slice(0, -1).join(', ')}, and ${days[days.length - 1]}`
 }
 
 function record(value: unknown): value is Record<string, unknown> {
