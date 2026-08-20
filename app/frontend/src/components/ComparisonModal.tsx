@@ -75,6 +75,23 @@ export function ComparisonModal({
       label: `Est. cost (${energyKwh} kWh)`,
       value: (item) => formatPrice(item.estimatedCost),
     },
+    {
+      key: 'parkingRateText',
+      label: 'Parking rate/status',
+      value: (item) =>
+        item.parkingRateText ??
+        (item.parkingEstimateStatus === 'unavailable' ? 'Unavailable' : 'See published rate'),
+    },
+    {
+      key: 'estimatedParkingCost',
+      label: 'Est. parking cost',
+      value: (item) => formatPrice(item.estimatedParkingCost),
+    },
+    {
+      key: 'estimatedTotalCost',
+      label: 'Est. total visit cost',
+      value: (item) => formatPrice(item.estimatedTotalCost),
+    },
     { key: 'travelMinutes', label: 'Travel time', value: (item) => `${item.travelMinutes} min` },
     { key: 'travelSource', label: 'Travel data', value: (item) => item.travelSource },
     { key: 'operator', label: 'Operator', value: (item) => item.operator },
@@ -83,7 +100,7 @@ export function ComparisonModal({
   return (
     <Modal
       title="Compare charging options"
-      subtitle={`${connector === 'Any' ? 'Best connector per station' : connector} · estimates based on ${energyKwh} kWh added`}
+      subtitle={`${connector === 'Any' ? 'Best connector per station' : connector} · visit estimates based on ${energyKwh} kWh added`}
       onClose={onClose}
       wide
     >

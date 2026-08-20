@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
-import { BatteryCharging, Clock3, Compass, History, Menu, Sparkles, X, Zap } from 'lucide-react'
+import { Clock3, Compass, Menu, Sparkles, X, Zap } from 'lucide-react'
 import type { Page } from './types'
 import { ExplorePage } from './pages/ExplorePage'
 import { MonitoringPage } from './pages/MonitoringPage'
-import { HistoryPage } from './pages/HistoryPage'
 import { api } from './api'
 import type { IntegrationProviderStatus } from './types'
 
 const nav = [
   { id: 'explore' as Page, label: 'Find a charger', icon: Compass },
   { id: 'monitoring' as Page, label: 'Monitoring', icon: Clock3 },
-  { id: 'history' as Page, label: 'Charging history', icon: History },
 ]
 
 export default function App() {
@@ -20,6 +18,7 @@ export default function App() {
   const [providers, setProviders] = useState<{
     ltaDataMall: IntegrationProviderStatus
     oneMap: IntegrationProviderStatus
+    parking: { ura: IntegrationProviderStatus; hdb: IntegrationProviderStatus }
   } | null>(null)
 
   useEffect(() => {
@@ -92,16 +91,14 @@ export default function App() {
           </span>
           <div>
             <b>Smarter than nearest</b>
-            <p>Every recommendation explains availability, time, speed and price.</p>
+            <p>Every recommendation explains availability, travel, speed and visit cost.</p>
           </div>
         </div>
         <div className="sidebar-footer">
-          <div className="avatar">AL</div>
           <div>
-            <b>Alex Lim</b>
-            <span>Demo account</span>
+            <b>Local ChargeWise app</b>
+            <span>No account or charging history is stored.</span>
           </div>
-          <BatteryCharging size={18} />
         </div>
       </aside>
       {menuOpen && (
@@ -126,7 +123,6 @@ export default function App() {
         </header>
         {page === 'explore' && <ExplorePage navigate={navigate} notify={setToast} />}
         {page === 'monitoring' && <MonitoringPage notify={setToast} />}
-        {page === 'history' && <HistoryPage notify={setToast} />}
       </main>
 
       {toast && (

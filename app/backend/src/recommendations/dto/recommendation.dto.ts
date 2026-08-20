@@ -14,6 +14,8 @@ export class RecommendationDto {
   @IsOptional() @IsBoolean() includeUnknown?: boolean
   @IsOptional() @IsString() operator?: string
   @IsOptional() @IsString() preferredOperator?: string
+  @IsOptional() @IsString() evaluationAt?: string
+  @IsOptional() @IsString() requestTime?: string
   @IsOptional() @Type(() => Number) @Min(0) @Max(100) availabilityWeight?: number = 30
   @IsOptional() @Type(() => Number) @Min(0) @Max(100) travelWeight?: number = 25
   @IsOptional() @Type(() => Number) @Min(0) @Max(100) speedWeight?: number = 20
@@ -27,4 +29,5 @@ export class CompareStationsDto {
   @IsOptional() @Type(() => Number) @Min(1) @Max(150) energyKwh?: number = 35
   @IsOptional() @Type(() => Number) @IsNumber() latitude?: number = 1.3048
   @IsOptional() @Type(() => Number) @IsNumber() longitude?: number = 103.8318
+  @IsOptional() @IsString() evaluationAt?: string
 }

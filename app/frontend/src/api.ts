@@ -26,9 +26,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getIntegrationStatus() {
-    return request<{ ltaDataMall: IntegrationProviderStatus; oneMap: IntegrationProviderStatus }>(
-      '/integrations/status',
-    )
+    return request<{
+      ltaDataMall: IntegrationProviderStatus
+      oneMap: IntegrationProviderStatus
+      parking: { ura: IntegrationProviderStatus; hdb: IntegrationProviderStatus }
+    }>('/integrations/status')
   },
   searchStations(params: Record<string, string | number | boolean | undefined>) {
     const query = new URLSearchParams()
@@ -82,12 +84,6 @@ export const api = {
       body: JSON.stringify({ stationId }),
     })
   },
-  getSessions() {
-    return request<SessionsResponse>('/sessions')
-  },
-  createSession(body: Record<string, unknown>) {
-    return request('/sessions', { method: 'POST', body: JSON.stringify(body) })
-  },
 }
 
 export interface CompareOption {
@@ -102,6 +98,11 @@ export interface CompareOption {
   estimatedChargeMinutes: number | null
   pricePerKwh: number | null
   estimatedCost: number | null
+  parking: import('./types').ParkingInfo | null
+  parkingRateText: string | null
+  estimatedParkingCost: number | null
+  estimatedTotalCost: number | null
+  parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
   distanceKm: number
   travelMinutes: number
   lastUpdated: string
@@ -126,13 +127,4 @@ export interface AlternativesResponse {
 }
 interface RankedStationWithDetour extends RankedStation {
   additionalTravelMinutes: number
-}
-export interface SessionsResponse {
-  sessions: import('./types').ChargingSession[]
-  summary: {
-    monthlyCost: number
-    monthlyEnergyKwh: number
-    monthlySessions: number
-    averageCostPerKwh: number
-  }
 }

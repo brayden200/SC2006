@@ -1,6 +1,6 @@
 import { Button } from '@mantine/core'
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react'
-import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
+import { formatPrice, timeAgo } from '../lib'
 import type { ConnectorPreference, RankedStation } from '../types'
 
 interface Props {
@@ -79,11 +79,22 @@ export function StationCard({
         <div>
           <BatteryCharging size={17} />
           <b>
-            {formatPrice(station.pricePerKwh)}
-            {hasKnownPrice(station.pricePerKwh) && '/kWh'}
+            {station.estimatedTotalCost !== null
+              ? `$${station.estimatedTotalCost.toFixed(2)} total`
+              : station.estimatedCost !== null
+                ? `$${station.estimatedCost.toFixed(2)} charge`
+                : formatPrice(station.pricePerKwh)}
           </b>
           <small>
-            {station.estimatedCost === null ? 'Cost unknown' : `$${station.estimatedCost.toFixed(2)} est.`}
+            {station.estimatedTotalCost !== null
+              ? 'Total visit estimate'
+              : station.parkingEstimateStatus === 'rate_only'
+                ? 'See parking rate'
+                : station.parkingEstimateStatus === 'unavailable'
+                  ? 'Parking unavailable'
+                  : station.estimatedCost === null
+                    ? 'Cost unknown'
+                    : 'Charging estimate'}
           </small>
         </div>
       </div>

@@ -1,14 +1,15 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
-import { ConnectorPreference, ConnectorType, RankedStation, Station } from '../common/types'
+import { BadRequestException, Injectable, Optional } from '@nestjs/common'
+import { ConnectorPreference, RankedStation, Station } from '../common/types'
+import { OneMapService, ParkingService, RouteResult } from '../integrations'
 import { StationsService } from '../stations/stations.service'
 import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto'
-import { OneMapService, RouteResult } from '../integrations/onemap.service'
 
 @Injectable()
 export class RecommendationsService {
   constructor(
     private readonly stationsService: StationsService,
     private readonly oneMap: OneMapService,
+    @Optional() private readonly parking?: ParkingService,
   ) {}
 
   async recommend(dto: RecommendationDto) {
@@ -74,8 +75,29 @@ export class RecommendationsService {
       ? Math.max(0, 100 - (travelMinutes / 45) * 100)
       : Math.max(0, 100 - (distanceKm / Math.max(dto.radiusKm ?? 8, 1)) * 100)
     const chargingSpeed = powerKw === null ? 0 : Math.min(100, (powerKw / 200) * 100)
+    const estimatedChargeMinutes =
+      powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
+    const estimatedCost =
+      pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2))
+    const arrivalTime = addMinutes(
+      dto.evaluationAt ?? dto.requestTime ?? new Date().toISOString(),
+      travelMinutes,
+    )
+    const parkingEstimate = this.parking?.estimate(station, arrivalTime, estimatedChargeMinutes) ?? {
+      estimatedParkingCost: null,
+      parkingEstimateStatus: station.parking ? ('rate_only' as const) : ('unavailable' as const),
+    }
+    const estimatedTotalCost =
+      estimatedCost !== null && parkingEstimate.estimatedParkingCost !== null
+        ? Number((estimatedCost + parkingEstimate.estimatedParkingCost).toFixed(2))
+        : null
     const price =
-      pricePerKwh === null ? null : Math.max(0, Math.min(100, 100 - ((pricePerKwh - 0.4) / 0.4) * 100))
+      estimatedTotalCost === null
+        ? null
+        : Math.max(
+            0,
+            Math.min(100, 100 - (estimatedTotalCost / Math.max((dto.energyKwh ?? 35) * 1.5, 1)) * 100),
+          )
     const preference = dto.preferredOperator ? (station.operator === dto.preferredOperator ? 100 : 35) : 70
 
     const rawWeights = {
@@ -94,13 +116,16 @@ export class RecommendationsService {
         preference * rawWeights.preference) /
       weightTotal
 
-    const estimatedChargeMinutes =
-      powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
-    const estimatedCost =
-      pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2))
-
     const reasons: string[] = []
-    if (price === null) reasons.push('Price is unknown and was excluded from scoring')
+    if (pricePerKwh === null) reasons.push('Price is unknown and was excluded from scoring')
+    if (parkingEstimate.parkingEstimateStatus === 'unavailable')
+      reasons.push('Parking cost unavailable and excluded from scoring')
+    if (parkingEstimate.parkingEstimateStatus === 'rate_only')
+      reasons.push('Parking rate available, but total could not be calculated')
+    if (parkingEstimate.estimatedParkingCost !== null)
+      reasons.push(
+        `Estimated S$${parkingEstimate.estimatedParkingCost.toFixed(2)} parking for the charging period`,
+      )
     if ((connector.available ?? 0) > 0)
       reasons.push(
         `${connector.available} compatible charger${connector.available === 1 ? '' : 's'} available now`,
@@ -109,7 +134,7 @@ export class RecommendationsService {
     if (distanceKm < 3) reasons.push(`Only ${travelMinutes} minutes away`)
     if (pricePerKwh !== null && pricePerKwh <= 0.55)
       reasons.push(`Competitive rate of $${pricePerKwh.toFixed(2)}/kWh`)
-    if (dto.preferredOperator === station.operator) reasons.push(`Matches your preferred operator`)
+    if (dto.preferredOperator === station.operator) reasons.push('Matches your preferred operator')
     if (dto.connector === 'Any') reasons.unshift(`${connector.type} selected as the best connector`)
 
     return {
@@ -122,6 +147,9 @@ export class RecommendationsService {
       travelSource: route ? 'OneMap' : 'Straight-line estimate',
       estimatedCost,
       estimatedChargeMinutes,
+      estimatedParkingCost: parkingEstimate.estimatedParkingCost,
+      estimatedTotalCost,
+      parkingEstimateStatus: parkingEstimate.parkingEstimateStatus,
       scoreBreakdown: {
         availability: Math.round(availability),
         travelTime: Math.round(travelTime),
@@ -152,6 +180,20 @@ export class RecommendationsService {
           route = null
         }
         const distanceKm = route?.distanceKm ?? this.stationsService.distanceKm(origin, station)
+        const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60))
+        const estimatedChargeMinutes =
+          powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
+        const estimatedCost =
+          pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2))
+        const arrivalTime = addMinutes(dto.evaluationAt ?? new Date().toISOString(), travelMinutes)
+        const parkingEstimate = this.parking?.estimate(station, arrivalTime, estimatedChargeMinutes) ?? {
+          estimatedParkingCost: null,
+          parkingEstimateStatus: station.parking ? ('rate_only' as const) : ('unavailable' as const),
+        }
+        const estimatedTotalCost =
+          estimatedCost !== null && parkingEstimate.estimatedParkingCost !== null
+            ? Number((estimatedCost + parkingEstimate.estimatedParkingCost).toFixed(2))
+            : null
         return {
           id: station.id,
           name: station.name,
@@ -161,14 +203,16 @@ export class RecommendationsService {
           availability: connector?.available ?? null,
           availabilityStatus: connector?.status ?? 'unknown',
           powerKw,
-          estimatedChargeMinutes: powerKw
-            ? Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
-            : null,
+          estimatedChargeMinutes,
           pricePerKwh,
-          estimatedCost:
-            pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2)),
+          estimatedCost,
+          parking: station.parking ?? null,
+          parkingRateText: station.parking?.publishedRateText ?? null,
+          estimatedParkingCost: parkingEstimate.estimatedParkingCost,
+          estimatedTotalCost,
+          parkingEstimateStatus: parkingEstimate.parkingEstimateStatus,
           distanceKm,
-          travelMinutes: route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60)),
+          travelMinutes,
           travelSource: route ? 'OneMap' : 'Straight-line estimate',
           lastUpdated: station.lastUpdated,
         }
@@ -184,6 +228,8 @@ export class RecommendationsService {
       { key: 'estimatedChargeMinutes', direction: 'min' },
       { key: 'pricePerKwh', direction: 'min' },
       { key: 'estimatedCost', direction: 'min' },
+      { key: 'estimatedParkingCost', direction: 'min' },
+      { key: 'estimatedTotalCost', direction: 'min' },
       { key: 'travelMinutes', direction: 'min' },
     ]
     directions.forEach(({ key, direction }) => {
@@ -192,7 +238,7 @@ export class RecommendationsService {
       const nums = values.map((item) => item[key] as number)
       const bestValue = direction === 'max' ? Math.max(...nums) : Math.min(...nums)
       const weakestValue = direction === 'max' ? Math.min(...nums) : Math.max(...nums)
-      highlights[key] = {
+      highlights[key as string] = {
         best: values.filter((item) => item[key] === bestValue).map((item) => item.id),
         weakest: values.filter((item) => item[key] === weakestValue).map((item) => item.id),
       }
@@ -209,9 +255,7 @@ export class RecommendationsService {
       'availableOnly' | 'includeUnknown' | 'minPowerKw' | 'availabilityWeight' | 'speedWeight'
     >,
   ) {
-    if (preference !== 'Any') {
-      return station.connectors.find((connector) => connector.type === preference)
-    }
+    if (preference !== 'Any') return station.connectors.find((connector) => connector.type === preference)
 
     const eligible = station.connectors.filter(
       (connector) =>
@@ -232,4 +276,10 @@ export class RecommendationsService {
       return score(b) - score(a)
     })[0]
   }
+}
+
+function addMinutes(value: Date | string, minutes: number) {
+  const date = value instanceof Date ? new Date(value) : new Date(value)
+  if (Number.isNaN(date.getTime())) return new Date()
+  return new Date(date.getTime() + minutes * 60_000)
 }

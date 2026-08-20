@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { AvailabilityStatus, Connector, ConnectorType, Station } from '../common/types'
+import { AvailabilityStatus, Connector, ConnectorType, Station } from '../../common/types'
 
 type JsonRecord = Record<string, unknown>
 
@@ -163,6 +163,7 @@ export class LtaDataMallService {
       operator: operator || 'Unknown',
       connectors,
       pricePerKwh: allPrices.length ? Math.min(...allPrices) : null,
+      parking: null,
       source: 'LTA DataMall',
       lastUpdated: fetchedAt,
     }

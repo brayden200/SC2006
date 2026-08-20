@@ -1,86 +1,83 @@
 # ChargeWise SG
 
-The app uses a NestJS API and a responsive React/Vite client, both written in TypeScript. It runs without Docker. LTA DataMall supplies live charging points and availability, while OneMap supplies address geocoding and driving routes.
+ChargeWise helps an EV driver answer: “Which nearby charger is currently available, compatible, and suitable after considering travel, charging speed, charging price, and parking cost?”
 
-## Requirements
+It is a TypeScript monorepo with a NestJS API and a responsive React/Vite client. LTA DataMall supplies live charging points and availability; OneMap supplies Singapore geocoding and driving routes.
+
+## Requirements and local run
 
 - Node.js 20 or newer
 - npm 10 or newer
 
-## Run locally
-
 ```bash
 npm install
+Copy-Item .env.example .env
 npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173). The API is available at [http://localhost:3000/api](http://localhost:3000/api), with a health check at `/api/health`.
 
-Copy `.env.example` to `.env` and add the keys you already obtained:
+Add the backend credentials you already have to `.env`:
 
 ```dotenv
 LTA_ACCOUNT_KEY=your-datamall-account-key
 ONEMAP_TOKEN=your-current-onemap-token
 ```
 
-OneMap tokens expire after three days. Instead of updating `ONEMAP_TOKEN` manually, you can omit it and set `ONEMAP_EMAIL` plus `ONEMAP_PASSWORD`; the backend will obtain and cache a token through OneMap's authentication endpoint. All credentials are read only by NestJS and are never returned to the client.
+OneMap tokens expire after three days. Instead of updating `ONEMAP_TOKEN` manually, set `ONEMAP_EMAIL` and `ONEMAP_PASSWORD` and the backend will obtain and cache a token. Credentials are read only by NestJS and are never returned to React.
 
-For separate production builds:
-
-```bash
-npm run build
-npm run start -w @chargewise/backend
-npm run dev -w @chargewise/frontend
-```
-
-The Vite development server proxies `/api` to port 3000. To point the frontend elsewhere, set `VITE_API_URL` using `.env.example` as a guide.
+URA parking data is optional. To enable it, configure `URA_ACCESS_KEY`; `URA_TOKEN` may be supplied when available, otherwise the backend obtains the daily token. HDB car-park metadata is fetched from data.gov.sg without a credential. See `.env.example` for all backend-only settings.
 
 ## Implemented use cases
 
-| Use case                       | Implementation                                                                                                                                                                                                       |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UC-01 Find compatible stations | OneMap address/postal-code geocoding, LTA compatibility and availability data, radius, power, price and operator filters, map and list views, station details, no-result recovery suggestions, cached-data labeling. |
-| UC-02 Recommend best charger   | Normalized weighted scoring, OneMap driving time/distance, four ranking presets, top choice plus alternatives, score breakdown, reasons, cost/time estimates, missing-price weight redistribution.                   |
-| UC-03 Compare options          | Select 2–4 stations, compare live availability, compatibility, speed, charging duration, cost, travel, hours and operator, with best/weakest highlights and explicit unknown values.                                 |
-| UC-04 Monitor charger          | 90-minute watchlist, backend 30-second checks, status timestamps, event history, expiry/stop controls, and an on-demand live refresh.                                                                                |
-| UC-05 Recommend alternative    | Re-ranks available compatible chargers from the user's current location, displays added travel time, accepts a replacement and continues monitoring.                                                                 |
-| UC-07 Charging sessions        | Queries backend stations as the user types, then records a validated station with energy added, total cost, and session date; calculates monthly spend, energy, and average rate.                                    |
+| Use case                             | Implementation                                                                                                                                                                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UC-01 Find compatible stations       | Address/current-location search, LTA compatibility and availability, radius/power/charging-price/operator filters, map/list views, cached-data labeling, and official parking enrichment where a conservative match exists. |
+| UC-02 Recommend best charger         | Existing weighted ranking with OneMap travel, four priority presets, connector selection, explanations, charging estimates, parking estimates, and total visit cost when both costs are known.                              |
+| UC-03 Compare options                | Compare 2–4 stations with known-value highlights for charging, parking, total visit cost, travel, availability, speed, and operator. Unknown parking never wins a cheapest-total comparison.                                |
+| UC-04 Monitor charger                | 90-minute monitors, backend checks every 30 seconds, page refresh every 15 seconds, status/events, expiry/stop controls, and manual refresh.                                                                                |
+| UC-05 Find and accept an alternative | Re-ranks available compatible chargers from the current location, shows detour estimates, and switches the existing monitor.                                                                                                |
 
-UC-06 is not present: there is no vehicle-profile or saved-preferences screen. Registered-user flows use the visible demo account, while connector and ranking priorities are chosen per search.
+There are no accounts, authentication, charging logs, charging history, payments, reservations, cloud sync, or push notifications.
 
-## Data and safety behavior
+## Parking data and limitations
 
-- The backend calls LTA DataMall `EVCBatch`, follows its short-lived JSON download link, normalizes the documented nested charging-point structure, and caches it for four minutes. `EVChargingPoints` postal-code lookup is also implemented.
-- OneMap Search geocodes user input and OneMap Routing supplies driving distance and duration. Responses are cached to respect API limits; route failures fall back to clearly labeled straight-line estimates.
-- The app does not ship seeded stations or sessions.
-- Every station response identifies its source and includes `lastUpdated`. `/api/integrations/status` reports provider health without exposing credentials.
-- `LTA_ACCOUNT_KEY`, `ONEMAP_TOKEN`, `ONEMAP_EMAIL`, and `ONEMAP_PASSWORD` are backend-only and are never referenced by frontend code.
-- Unknown prices and statuses stay unknown. They are not fabricated. Operating hours and amenities are omitted because the current LTA batch does not provide them.
-- An incompatible connector is removed before recommendation scoring.
-- Availability is always presented as a snapshot, never as a reservation or guarantee.
-- Runtime records use in-memory storage and reset when the API restarts. A database can replace the service stores later without changing the client contract.
+- URA car-park details and rates come from the official [URA Data Service](https://eservice.ura.gov.sg/maps/api/) and are cached in backend memory for up to one day.
+- HDB car-park locations come from the official [HDB Carpark Information dataset](https://data.gov.sg/datasets/d_23f946fa557947f93a8043bbef41dd09/view). The backend combines that metadata with HDB's published [short-term parking charges](https://www.hdb.gov.sg/parking/other-parking-matters/shortterm-parking/shortterm-parking-charges).
+- The application does not use the old 2018 LTA “Carpark Rates” dataset, scrape private malls/developments, or invent private-carpark rates.
+- A charger is associated only when identifier/address/name evidence and conservative proximity support the match. A questionable match returns `parking: null`.
+- Published rate text is shown when available. A numeric parking estimate is produced only for supported structured weekday, Saturday, Sunday/public-holiday, time-band, per-unit, or per-entry rules. Ambiguous text remains `rate_only`.
+- `estimatedTotalCost` is `estimatedCost + estimatedParkingCost` only when both components are known. `maxPrice` remains a maximum charging rate per kWh; it is not a total-visit-cost filter.
+- Unknown parking is never treated as zero or free. Private-carpark rates remain unavailable.
+
+## Runtime state and caching
+
+Only monitoring state and event history are persisted. By default it is stored at `runtime-data/monitors.json`; set `CHARGEWISE_DATA_DIR` to choose another local directory. Writes use a complete temporary file followed by replacement, and malformed records are ignored safely. Expired active monitors are marked expired when loaded.
+
+Monitoring runs only while the local ChargeWise backend is running. Closing or stopping the backend stops the 30-second checks; the app does not promise background monitoring or notifications after shutdown.
+
+LTA, OneMap, URA, and HDB provider caches are transient backend memory caches. The app does not persist charger snapshots, routes, searches, sessions, or user history. `/api/integrations/status` reports provider configuration, health, last success, and last error without exposing secrets.
 
 ## Project structure
 
 ```text
 app/
-  backend/              NestJS API
-    src/integrations/   LTA DataMall and OneMap clients, normalization and caches
-    src/stations/       Live/cache provider selection and filtering
-    src/recommendations Scoring and comparison
-    src/monitoring/     Watchlist and alternatives
-    src/sessions/       Charging history and summaries
-  frontend/             React/Vite client
-    src/components/     Shared map, cards and dialogs
-    src/pages/          Explore, monitoring and history flows
+  backend/
+    src/integrations/   LTA, OneMap, URA, HDB, matching, tariffs, and caches
+    src/stations/       Live station refresh and filtering
+    src/recommendations Ranking and comparison
+    src/monitoring/     File-backed watchlist and alternatives
+  frontend/
+    src/components/     Map, station cards, details, and comparison
+    src/pages/          Explore and monitoring flows
+docs/                   Use-case diagram
 ```
 
 ## Verification
 
 ```bash
+npm run format:check
 npm run typecheck
 npm test
 npm run build
 ```
-
-The automated tests cover connector compatibility, missing-price handling, LTA data normalization, integration fallbacks, and frontend unknown-price formatting.

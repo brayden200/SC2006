@@ -1,7 +1,7 @@
 import { Button } from '@mantine/core'
 import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react'
 import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
-import type { ConnectorType, Station } from '../types'
+import type { ConnectorType, RankedStation } from '../types'
 import { Modal } from './Modal'
 
 export function StationDetailsModal({
@@ -10,7 +10,7 @@ export function StationDetailsModal({
   onClose,
   onMonitor,
 }: {
-  station: Station
+  station: RankedStation
   connector: ConnectorType
   onClose: () => void
   onMonitor: () => void
@@ -56,12 +56,45 @@ export function StationDetailsModal({
           <span>Data source</span>
           <b>{station.source}</b>
         </div>
+        <div>
+          <MapPin />
+          <span>Charging estimate</span>
+          <b>{station.estimatedCost === null ? 'Unknown' : `$${station.estimatedCost.toFixed(2)}`}</b>
+        </div>
+        <div>
+          <MapPin />
+          <span>Parking estimate</span>
+          <b>
+            {station.estimatedParkingCost === null
+              ? 'Unavailable'
+              : `$${station.estimatedParkingCost.toFixed(2)}`}
+          </b>
+        </div>
+      </div>
+      <div className="parking-detail">
+        <b>Parking</b>
+        <p>{station.parking?.publishedRateText ?? 'Parking information is unavailable for this station.'}</p>
+        {station.parking && (
+          <small>
+            {station.parking.sourceName} · Updated {timeAgo(station.parking.lastUpdated)} ·{' '}
+            {station.parking.associationLabel}
+          </small>
+        )}
+      </div>
+      <div className="total-detail">
+        <span>Estimated total visit cost</span>
+        <b>
+          {station.estimatedTotalCost === null ? 'Unavailable' : `$${station.estimatedTotalCost.toFixed(2)}`}
+        </b>
       </div>
       <div className="data-note">
         <Database size={16} />
         <div>
           <b>Updated {timeAgo(station.lastUpdated)}</b>
-          <p>Availability is a snapshot and may change before you arrive.</p>
+          <p>
+            Charging and parking costs are estimates for the planned charging duration. Availability may
+            change before you arrive.
+          </p>
         </div>
       </div>
       <Button fullWidth onClick={onMonitor}>

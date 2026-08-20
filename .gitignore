@@ -4,3 +4,4 @@ dist
 .DS_Store
 coverage
 app/frontend/.vite
+runtime-data

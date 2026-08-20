@@ -1,6 +1,18 @@
 export type ConnectorType = 'CCS2' | 'Type 2' | 'CHAdeMO'
 export type ConnectorPreference = 'Any' | ConnectorType
-export type Page = 'explore' | 'monitoring' | 'history'
+export type Page = 'explore' | 'monitoring'
+
+export interface ParkingInfo {
+  carParkId: string
+  name: string
+  provider: 'URA' | 'HDB'
+  publishedRateText: string
+  sourceName: string
+  sourceUrl: string
+  lastUpdated: string
+  matchConfidence: 'high' | 'medium' | 'low'
+  associationLabel: string
+}
 
 export interface Connector {
   type: ConnectorType
@@ -20,6 +32,7 @@ export interface Station {
   operator: string
   connectors: Connector[]
   pricePerKwh: number | null
+  parking?: ParkingInfo | null
   source: string
   lastUpdated: string
   distanceKm?: number
@@ -34,6 +47,9 @@ export interface RankedStation extends Station {
   travelSource: 'OneMap' | 'Straight-line estimate'
   estimatedCost: number | null
   estimatedChargeMinutes: number | null
+  estimatedParkingCost: number | null
+  estimatedTotalCost: number | null
+  parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
   scoreBreakdown: Record<string, number | null>
   reasons: string[]
 }
@@ -49,6 +65,10 @@ export interface SearchResponse {
     fallbackReason: string | null
     ltaDataMall: IntegrationProviderStatus
     oneMap: IntegrationProviderStatus
+    parking?: {
+      ura: IntegrationProviderStatus
+      hdb: IntegrationProviderStatus
+    }
   }
   operators: string[]
   suggestions: string[]
@@ -88,14 +108,4 @@ export interface Monitor {
   status: 'active' | 'expired' | 'stopped'
   events: MonitorEvent[]
   station: Station
-}
-
-export interface ChargingSession {
-  id: string
-  stationId: string
-  stationName: string
-  startedAt: string
-  energyKwh: number
-  totalCost: number
-  createdAt: string
 }

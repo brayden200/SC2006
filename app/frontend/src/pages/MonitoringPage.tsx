@@ -130,7 +130,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
       <Alert className="monitor-info" color="green" icon={<Radio size={17} />}>
         <span>
           <b>Automatic monitoring every 30 seconds</b> using the latest provider snapshot. This page refreshes
-          every 15 seconds.
+          every 15 seconds. Monitoring runs only while the local ChargeWise backend is running.
         </span>
       </Alert>
       {loading ? (

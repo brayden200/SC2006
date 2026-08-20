@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { Interval } from '@nestjs/schedule'
@@ -9,6 +10,7 @@ import { ConnectorType } from '../common/types'
 import { RecommendationsService } from '../recommendations/recommendations.service'
 import { StationsService } from '../stations/stations.service'
 import { AcceptAlternativeDto, AlternativeQueryDto, CreateMonitorDto } from './dto/monitoring.dto'
+import { MonitorRepository } from './monitoring.repository'
 
 export interface MonitorEvent {
   id: string
@@ -36,7 +38,10 @@ export class MonitoringService {
   constructor(
     private readonly stationsService: StationsService,
     private readonly recommendationsService: RecommendationsService,
-  ) {}
+    @Optional() private readonly repository?: MonitorRepository,
+  ) {
+    this.monitors = repository?.getAll() ?? []
+  }
 
   create(dto: CreateMonitorDto) {
     const station = this.stationsService.findById(dto.stationId)
@@ -62,6 +67,7 @@ export class MonitoringService {
       events: [this.event('started', `Monitoring started for ${station.name}.`)],
     }
     this.monitors = [monitor, ...this.monitors]
+    this.persist()
     return this.enrich(monitor)
   }
 
@@ -73,6 +79,7 @@ export class MonitoringService {
   stop(id: string) {
     const monitor = this.find(id)
     monitor.status = 'stopped'
+    this.persist()
     return this.enrich(monitor)
   }
 
@@ -134,6 +141,7 @@ export class MonitoringService {
     monitor.lastKnownAvailability = connector.available
     monitor.lastCheckedAt = new Date().toISOString()
     monitor.events.unshift(this.event('alternative_accepted', `Switched monitoring to ${station.name}.`))
+    this.persist()
     return this.enrich(monitor)
   }
 
@@ -155,16 +163,23 @@ export class MonitoringService {
           : `${station.name} now has ${connector.available ?? 'unknown'} compatible charger${connector.available === 1 ? '' : 's'} available.`
       monitor.events.unshift(this.event('availability_changed', message))
       monitor.lastKnownAvailability = connector.available
+      this.persist()
     }
     monitor.lastCheckedAt = new Date().toISOString()
+    this.persist()
     return this.enrich(monitor)
   }
 
   private expireMonitors() {
     const now = Date.now()
+    let changed = false
     this.monitors.forEach((item) => {
-      if (item.status === 'active' && new Date(item.expiresAt).getTime() <= now) item.status = 'expired'
+      if (item.status === 'active' && new Date(item.expiresAt).getTime() <= now) {
+        item.status = 'expired'
+        changed = true
+      }
     })
+    if (changed) this.persist()
   }
 
   private find(id: string) {
@@ -184,5 +199,9 @@ export class MonitoringService {
       message,
       timestamp: new Date().toISOString(),
     }
+  }
+
+  private persist() {
+    this.repository?.save(this.monitors)
   }
 }

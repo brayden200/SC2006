@@ -2,12 +2,12 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { LocationInput, Station } from '../common/types'
 import { SearchStationsDto } from './dto/search-stations.dto'
-import { LtaDataMallService } from '../integrations/lta-datamall.service'
-import { OneMapService } from '../integrations/onemap.service'
+import { LtaDataMallService, OneMapService, ParkingService } from '../integrations'
 
 export interface StationSearchResult {
   stations: Array<Station & { distanceKm: number }>
@@ -33,6 +33,7 @@ export class StationsService {
   constructor(
     private readonly lta: LtaDataMallService,
     private readonly oneMap: OneMapService,
+    @Optional() private readonly parking?: ParkingService,
   ) {}
 
   getAll(): Station[] {
@@ -196,7 +197,7 @@ export class StationsService {
     try {
       const live = await this.lta.getAllStations(force)
       if (live.length) {
-        this.stations = live
+        this.stations = this.parking ? await this.parking.enrichStations(live) : live
       }
       this.fallbackReason =
         this.lta.status().state === 'error'

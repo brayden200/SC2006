@@ -4,27 +4,28 @@
 
 This document describes only user-facing use cases that are implemented in the current React frontend and NestJS backend. The existing use-case IDs are retained so that they remain consistent with the README and codebase.
 
-The current application has no authentication, account management, saved vehicle profile, saved preferences, external navigation, charger reservation, or push-notification feature. Runtime monitoring records and charging-session records are stored in memory and are cleared when the backend restarts.
+The current application has no authentication, account management, saved vehicle profile, saved preferences, external navigation, charger reservation, payments, push notifications, or charging history. Monitoring records are stored in a local backend file and monitoring runs only while the local ChargeWise backend is running.
 
 ## 2. Actors
 
-| Actor | Description |
-| --- | --- |
-| EV driver | Searches for, evaluates, compares, monitors, and records activity at EV charging stations. |
-| LTA DataMall | Secondary actor that supplies charging-station and availability data to the backend. |
-| OneMap | Secondary actor that supplies Singapore address search and driving-route data to the backend. |
-| Browser location service | Secondary actor that supplies the driver's current coordinates after permission is granted. |
+| Actor                    | Description                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| EV driver                | Searches for, evaluates, compares, and monitors EV charging stations.                                        |
+| LTA DataMall             | Secondary actor that supplies charging-station and availability data to the backend.                         |
+| OneMap                   | Secondary actor that supplies Singapore address search and driving-route data to the backend.                |
+| URA                      | Secondary actor that supplies official car-park details and published rates when configured.                 |
+| HDB / data.gov.sg        | Secondary actor that supplies HDB car-park metadata, combined with HDB's published short-term parking rules. |
+| Browser location service | Secondary actor that supplies the driver's current coordinates after permission is granted.                  |
 
 ## 3. Use-Case Summary
 
-| ID | Use case | Primary actor | Priority |
-| --- | --- | --- | --- |
-| UC-01 | Find compatible charging stations | EV driver | High |
-| UC-02 | Receive a ranked charger recommendation | EV driver | High |
-| UC-03 | Compare charging options | EV driver | High |
-| UC-04 | Monitor charger availability | EV driver | High |
-| UC-05 | Find and accept an alternative charger | EV driver | High |
-| UC-06 | Record and review charging sessions | EV driver | Medium |
+| ID    | Use case                                | Primary actor | Priority |
+| ----- | --------------------------------------- | ------------- | -------- |
+| UC-01 | Find compatible charging stations       | EV driver     | High     |
+| UC-02 | Receive a ranked charger recommendation | EV driver     | High     |
+| UC-03 | Compare charging options                | EV driver     | High     |
+| UC-04 | Monitor charger availability            | EV driver     | High     |
+| UC-05 | Find and accept an alternative charger  | EV driver     | High     |
 
 ## 4. Use-Case Descriptions
 
@@ -63,8 +64,9 @@ The current application has no authentication, account management, saved vehicle
 6. The backend resolves the search location and retrieves the current LTA charging-station snapshot.
 7. The backend removes stations outside the radius and stations that do not satisfy the selected filters.
 8. The system displays the matching stations in a list and as selectable map markers.
-9. For each displayed station, the system shows its selected connector, distance, availability, charging power, travel estimate, price when known, estimated cost and charging time when calculable, recommendation score, and data-update time.
-10. The driver may select **View details** on a station card or select a map marker to view the station's address, operator, postal code, connector details, price, data source, and last-update time.
+9. The backend attempts to associate each charger with an official URA or HDB car park using identifier, address/name, and conservative geographic evidence. Uncertain associations are omitted.
+10. For each displayed station, the system shows its selected connector, distance, availability, charging power, travel estimate, charging price when known, published parking rate when matched, charging/parking estimates, recommendation score, and data-update time.
+11. The driver may select **View details** on a station card or select a map marker to view the station's address, operator, postal code, connector details, charging/parking estimates, data sources, and freshness.
 
 **Alternative flows:**
 
@@ -113,17 +115,17 @@ The current application has no authentication, account management, saved vehicle
 2. The system selects the requested connector or, when **Any connector** is selected, chooses a connector for each station using availability and charging speed.
 3. The backend attempts to obtain OneMap driving distance and travel time for up to the first eight search candidates.
 4. For candidates without a OneMap route, the backend calculates straight-line distance and an estimated travel time.
-5. The system normalizes and combines availability, travel time, charging speed, price, and operator preference using the selected priority's weights.
-6. When a station's price is unknown, the system removes the price component and redistributes the effective weight across the remaining components.
+5. The system normalizes and combines availability, travel time, charging speed, estimated total visit cost when complete, and operator preference using the selected priority's weights.
+6. When charging or parking cost is unknown, the system removes the cost component and redistributes the effective weight across the remaining components; unknown parking is never treated as free.
 7. The system calculates estimated charging time from the intended energy and connector power when charging power is known.
-8. The system calculates estimated cost when price is known.
+8. The system calculates estimated charging cost and evaluates the same charging duration as a parking duration against supported official tariffs. It calculates an estimated total only when both components are known.
 9. The system sorts the candidates by score and labels the first station as **Best match**.
-10. The system displays up to three reasons for each recommendation, such as current availability, charging speed, proximity, price, operator match, or the connector selected.
+10. The system displays up to three reasons for each recommendation, such as current availability, charging speed, proximity, estimated parking cost, incomplete parking data, operator match, or the connector selected.
 
 **Alternative flows:**
 
 - **AF-S3 - Route unavailable:** The system uses straight-line distance and labels the travel source as an estimate.
-- **AF-S6 - Price unavailable:** The system displays the price and cost as unknown and excludes price from the station's score.
+- **AF-S6 - Charging or parking cost unavailable:** The system displays the known component separately and excludes incomplete visit cost from the station's score.
 - **AF-S9 - Fewer than three results:** The system displays only the number of ranked stations that are available.
 
 **Exceptions:** If a candidate has no compatible connector, the backend rejects it rather than ranking an incompatible charging option.
@@ -167,10 +169,13 @@ The current application has no authentication, account management, saved vehicle
    - charging power;
    - estimated charging time;
    - price per kWh;
-   - estimated cost;
+   - estimated charging cost;
+   - published parking rate/status;
+   - estimated parking cost;
+   - estimated total visit cost;
    - travel time and travel-data source; and
    - operator.
-6. The system highlights the best and weakest known numeric values for availability, power, charging time, price, estimated cost, and travel time.
+6. The system highlights the best and weakest known numeric values for availability, power, charging time, price, charging cost, parking cost, total visit cost, and travel time. Unknown total costs are ignored.
 7. The driver selects **Choose** for one station.
 8. The system closes the comparison and opens that station's details.
 
@@ -207,7 +212,7 @@ The current application has no authentication, account management, saved vehicle
 1. UC-01 has displayed at least one station.
 2. The selected station supports the connector chosen for monitoring.
 
-**Postconditions:** A monitor is active, stopped, or expired. Its current status and recorded events remain visible until the backend restarts.
+**Postconditions:** A monitor is active, stopped, or expired. Its current status and recorded events are reloaded from the local backend data file when the backend starts.
 
 **Priority:** High
 
@@ -224,6 +229,7 @@ The current application has no authentication, account management, saved vehicle
 7. While open, the monitoring page refreshes its displayed monitor list every 15 seconds.
 8. The driver may select **Check now** to request an immediate live-provider refresh and availability check.
 9. The driver may select **Stop** to end monitoring before it expires.
+10. The backend saves monitor state and event history after creation, stopping, expiry, availability changes, and alternative acceptance.
 
 **Alternative flows:**
 
@@ -243,7 +249,7 @@ The current application has no authentication, account management, saved vehicle
 
 **Assumptions:** The user keeps the application available to view changes. The implementation does not send operating-system, email, SMS, or push notifications.
 
-**Notes and issues:** Monitoring state is stored in backend memory and is lost when the backend restarts.
+**Notes and issues:** Monitoring state is stored in the configurable local backend data directory. Monitoring does not continue after the local backend is closed, and no notification service is implemented.
 
 ---
 
@@ -296,56 +302,3 @@ The current application has no authentication, account management, saved vehicle
 **Notes and issues:** The application does not detect whether the vehicle is moving and does not implement a reduced-interaction driving mode.
 
 ---
-
-### UC-06: Record and Review Charging Sessions
-
-**Actor:** EV driver
-
-**Description:** Allows an EV driver to record a completed charging session and review recorded sessions and current-month summaries.
-
-**Preconditions:**
-
-1. The backend has retrieved station data from LTA DataMall.
-2. The driver knows the energy added and total cost for the session.
-
-**Postconditions:** A valid session is added to the history and the current-month summaries are recalculated.
-
-**Priority:** Medium
-
-**Frequency of use:** Medium
-
-**Flow of events:**
-
-1. The driver opens **Charging history**.
-2. The system displays existing sessions and the current month's total spend, total energy, session count, average cost per kWh, and a cost-by-session chart when records exist.
-3. The driver selects **Record session**.
-4. The system opens a form with the current date and time filled by default.
-5. The driver types at least two characters from a station name, address, or postal code.
-6. The backend searches the current station data and returns up to 20 matching station options.
-7. The driver selects a station and may adjust the session date and time.
-8. The driver enters energy added between 0.1 kWh and 200 kWh and total cost between S$0 and S$1,000.
-9. The driver selects **Save session**.
-10. The backend validates the input and station ID, stores the authoritative station name with the record, and returns the new session.
-11. The system closes the form, reloads the history, and recalculates summaries for sessions whose start time is in the current month.
-
-**Alternative flows:**
-
-- **AF-S4 - Keep default date:** The driver leaves the prefilled date and time unchanged.
-- **AF-S5 - Refine station query:** If the intended station is not shown, the driver changes the typed station name, address, or postal code and the system searches again.
-- **AF-S9 - Cancel entry:** The driver closes the form without saving a session.
-- **AF-S2 - No existing sessions:** The system displays an empty state and a **Record first session** action; all summary values are zero.
-
-**Exceptions:**
-
-1. If the station query contains fewer than two characters, the system does not return station options.
-2. If no station is selected, the save action remains disabled.
-3. If the date, energy, or cost is invalid, the frontend displays a validation message and does not submit the record.
-4. If the selected station no longer exists in the backend's current data, the backend rejects the record.
-
-**Includes:** None
-
-**Special requirements:** The backend must validate the station and numeric ranges instead of trusting the browser form.
-
-**Assumptions:** The driver enters the actual energy and cost; the application does not import charging transactions automatically.
-
-**Notes and issues:** Charging-session records are stored in backend memory and are lost when the backend restarts. Editing and deleting sessions are not implemented.

@@ -5,7 +5,6 @@ import { HealthController } from './health.controller'
 import { StationsModule } from './stations/stations.module'
 import { RecommendationsModule } from './recommendations/recommendations.module'
 import { MonitoringModule } from './monitoring/monitoring.module'
-import { SessionsModule } from './sessions/sessions.module'
 import { IntegrationsModule } from './integrations/integrations.module'
 
 @Module({
@@ -15,7 +14,6 @@ import { IntegrationsModule } from './integrations/integrations.module'
     StationsModule,
     RecommendationsModule,
     MonitoringModule,
-    SessionsModule,
     IntegrationsModule,
   ],
   controllers: [HealthController],

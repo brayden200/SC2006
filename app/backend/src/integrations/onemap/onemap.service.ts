@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { LocationInput } from '../common/types'
+import { LocationInput } from '../../common/types'
 
 interface OneMapSearchResponse {
   found?: number

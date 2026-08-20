@@ -187,7 +187,7 @@ export function ExplorePage({
           <h1>
             Find your best charge, <em>not just the nearest.</em>
           </h1>
-          <p>Live availability, travel time, speed and price—ranked around what matters to you.</p>
+          <p>Live availability, travel time, speed and visit cost—ranked around what matters to you.</p>
         </div>
       </section>
 
@@ -341,7 +341,7 @@ export function ExplorePage({
         <div className="page-loading">
           <Loader size="md" />
           <h3>Ranking compatible chargers…</h3>
-          <p>Balancing availability, travel, speed and price.</p>
+          <p>Balancing availability, travel, speed and charging plus parking cost.</p>
         </div>
       ) : ranked.length > 0 ? (
         <>

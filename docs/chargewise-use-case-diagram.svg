@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="650" viewBox="0 0 1100 650" role="img" aria-labelledby="title desc">
+  <title id="title">ChargeWise SG use-case diagram</title>
+  <desc id="desc">An EV driver searches, receives recommendations, compares, monitors, and switches to alternative chargers. LTA, OneMap, URA, HDB, and browser location provide supporting data.</desc>
+  <style>
+    .boundary { fill: #f7faf7; stroke: #1d4d35; stroke-width: 2; }
+    .usecase { fill: #e7f4e9; stroke: #1d4d35; stroke-width: 1.5; }
+    .external { fill: #fff; stroke: #63746a; stroke-width: 1.5; }
+    .line { stroke: #63746a; stroke-width: 1.5; fill: none; }
+    text { font-family: Arial, sans-serif; fill: #173126; }
+    .heading { font-size: 22px; font-weight: 700; }
+    .label { font-size: 15px; }
+    .small { font-size: 13px; }
+  </style>
+  <rect class="boundary" x="260" y="45" width="600" height="555" rx="18"/>
+  <text class="heading" x="560" y="78" text-anchor="middle">ChargeWise SG</text>
+
+  <ellipse class="usecase" cx="560" cy="145" rx="190" ry="36"/>
+  <text class="label" x="560" y="141" text-anchor="middle">UC-01 Find compatible</text>
+  <text class="label" x="560" y="160" text-anchor="middle">charging stations</text>
+  <ellipse class="usecase" cx="560" cy="245" rx="190" ry="36"/>
+  <text class="label" x="560" y="241" text-anchor="middle">UC-02 Receive ranked</text>
+  <text class="label" x="560" y="260" text-anchor="middle">charger recommendation</text>
+  <ellipse class="usecase" cx="560" cy="345" rx="190" ry="36"/>
+  <text class="label" x="560" y="341" text-anchor="middle">UC-03 Compare charging</text>
+  <text class="label" x="560" y="360" text-anchor="middle">options and visit cost</text>
+  <ellipse class="usecase" cx="560" cy="445" rx="190" ry="36"/>
+  <text class="label" x="560" y="441" text-anchor="middle">UC-04 Monitor charger</text>
+  <text class="label" x="560" y="460" text-anchor="middle">availability locally</text>
+  <ellipse class="usecase" cx="560" cy="545" rx="190" ry="36"/>
+  <text class="label" x="560" y="541" text-anchor="middle">UC-05 Find and accept</text>
+  <text class="label" x="560" y="560" text-anchor="middle">an alternative charger</text>
+
+  <circle class="external" cx="90" cy="320" r="32"/>
+  <circle cx="90" cy="307" r="10" fill="#63746a"/><path class="line" d="M73 340 Q90 318 107 340"/>
+  <text class="label" x="90" y="380" text-anchor="middle">EV driver</text>
+  <path class="line" d="M122 320 H365"/><path class="line" d="M122 320 V545 H365"/>
+
+  <rect class="external" x="915" y="100" width="140" height="55" rx="10"/>
+  <text class="label" x="985" y="133" text-anchor="middle">LTA DataMall</text>
+  <path class="line" d="M915 128 H750"/>
+  <rect class="external" x="915" y="190" width="140" height="55" rx="10"/>
+  <text class="label" x="985" y="223" text-anchor="middle">OneMap</text>
+  <path class="line" d="M915 218 H750"/>
+  <rect class="external" x="915" y="280" width="140" height="55" rx="10"/>
+  <text class="label" x="985" y="313" text-anchor="middle">URA</text>
+  <path class="line" d="M915 308 H750"/>
+  <rect class="external" x="915" y="370" width="140" height="55" rx="10"/>
+  <text class="label" x="985" y="403" text-anchor="middle">HDB / data.gov.sg</text>
+  <path class="line" d="M915 398 H750"/>
+  <rect class="external" x="915" y="460" width="140" height="55" rx="10"/>
+  <text class="label" x="985" y="493" text-anchor="middle">Browser location</text>
+  <path class="line" d="M915 488 H750"/>
+
+  <text class="small" x="560" y="625" text-anchor="middle">Monitoring data is stored locally while the ChargeWise backend is running; no accounts or charging history.</text>
+</svg>

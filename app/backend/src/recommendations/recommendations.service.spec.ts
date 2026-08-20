@@ -1,6 +1,5 @@
 import type { Station } from '../common/types'
-import { LtaDataMallService } from '../integrations/lta-datamall.service'
-import { OneMapService } from '../integrations/onemap.service'
+import { LtaDataMallService, OneMapService } from '../integrations'
 import { StationsService } from '../stations/stations.service'
 import { RecommendationsService } from './recommendations.service'
 
