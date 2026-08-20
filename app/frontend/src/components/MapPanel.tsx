@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LatLngBounds, divIcon, point, type Map as LeafletMap } from 'leaflet'
-import { Circle, CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
-import { LocateFixed, Minus, Plus } from 'lucide-react'
+import {
+  Circle,
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from 'react-leaflet'
+import { LocateFixed, Minus, Navigation, Plus } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
-import type { ConnectorPreference, RankedStation } from '../types'
+import type { ConnectorPreference, DrivingRoute, RankedStation } from '../types'
 
 interface MapLocation {
   latitude: number
@@ -18,16 +27,44 @@ interface MapPanelProps {
   onSelect: (station: RankedStation) => void
   location: MapLocation
   currentLocation?: Pick<MapLocation, 'latitude' | 'longitude'> & { accuracy: number }
+  route?: DrivingRoute | null
+  routeStation?: RankedStation | null
+  routeLoading?: boolean
+  routeError?: string
 }
 
-function MapViewport({ stations, location }: { stations: RankedStation[]; location: MapLocation }) {
+function MapViewport({
+  stations,
+  location,
+  route,
+  routeStation,
+  routeLoading,
+  routeError,
+}: {
+  stations: RankedStation[]
+  location: MapLocation
+  route?: DrivingRoute | null
+  routeStation?: RankedStation | null
+  routeLoading?: boolean
+  routeError?: string
+}) {
   const map = useMap()
 
   useEffect(() => {
-    const points: [number, number][] = [
-      [location.latitude, location.longitude],
-      ...stations.map((station) => [station.latitude, station.longitude] as [number, number]),
-    ]
+    const routePoints = routeStation
+      ? [
+          [location.latitude, location.longitude] as [number, number],
+          ...((route?.coordinates ?? []) as [number, number][]),
+          [routeStation.latitude, routeStation.longitude] as [number, number],
+        ]
+      : []
+    const points: [number, number][] =
+      routeStation && (routeLoading || route || routeError)
+        ? routePoints
+        : [
+            [location.latitude, location.longitude],
+            ...stations.map((station) => [station.latitude, station.longitude] as [number, number]),
+          ]
 
     if (points.length === 1) {
       map.setView(points[0], 15)
@@ -39,7 +76,7 @@ function MapViewport({ stations, location }: { stations: RankedStation[]; locati
       maxZoom: 15,
       padding: [46, 46],
     })
-  }, [location.latitude, location.longitude, map, stations])
+  }, [location.latitude, location.longitude, map, route, routeError, routeLoading, routeStation, stations])
 
   return null
 }
@@ -61,6 +98,10 @@ export function MapPanel({
   onSelect,
   location,
   currentLocation,
+  route,
+  routeStation,
+  routeLoading,
+  routeError,
 }: MapPanelProps) {
   const [map, setMap] = useState<LeafletMap | null>(null)
   const [zoom, setZoom] = useState(13)
@@ -114,7 +155,14 @@ export function MapPanel({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={19}
         />
-        <MapViewport stations={stations} location={location} />
+        <MapViewport
+          stations={stations}
+          location={location}
+          route={route}
+          routeStation={routeStation}
+          routeLoading={routeLoading}
+          routeError={routeError}
+        />
 
         {currentLocation && (
           <>
@@ -165,6 +213,12 @@ export function MapPanel({
             </Marker>
           )
         })}
+        {route && route.coordinates.length > 1 && (
+          <Polyline
+            positions={route.coordinates}
+            pathOptions={{ color: '#176dca', weight: 5, opacity: 0.88 }}
+          />
+        )}
       </MapContainer>
 
       <div className="map-controls" aria-label="Map controls">
@@ -202,6 +256,26 @@ export function MapPanel({
         <span>Search center</span>
         <b>{location.label ?? 'Selected location'}</b>
       </div>
+      {(routeLoading || routeError || route) && (
+        <div
+          className={`map-route-status ${routeError ? 'error' : routeLoading ? 'loading' : ''}`}
+          role={routeError ? 'alert' : 'status'}
+        >
+          {routeLoading && <span className="route-status-spinner" aria-hidden="true" />}
+          {!routeLoading && !routeError && <Navigation size={13} />}
+          <span>
+            {routeLoading
+              ? 'Loading OneMap road route…'
+              : routeError
+                ? routeStation?.travelSource === 'OneMap'
+                  ? 'Road geometry unavailable — OneMap travel time retained'
+                  : 'Road route unavailable — straight-line estimate only'
+                : route
+                  ? `OneMap road route · ${route.distanceKm.toFixed(2)} km · ${route.travelMinutes} min`
+                  : ''}
+          </span>
+        </div>
+      )}
       <div className="map-legend">
         <span>
           <i className="legend-available" /> Available

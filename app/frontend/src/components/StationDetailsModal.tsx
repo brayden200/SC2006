@@ -4,17 +4,43 @@ import { formatPrice, hasKnownPrice, timeAgo } from '../lib'
 import type { ConnectorType, RankedStation } from '../types'
 import { Modal } from './Modal'
 
+export function buildGoogleMapsDrivingUrl(
+  origin: { latitude: number; longitude: number },
+  destination: { latitude: number; longitude: number },
+) {
+  const params = new URLSearchParams({
+    api: '1',
+    origin: `${origin.latitude},${origin.longitude}`,
+    destination: `${destination.latitude},${destination.longitude}`,
+    travelmode: 'driving',
+  })
+  return `https://www.google.com/maps/dir/?${params}`
+}
+
 export function StationDetailsModal({
   station,
   connector,
+  origin,
   onClose,
   onMonitor,
+  onSelectRoute,
+  routeLoading = false,
+  routeError = '',
 }: {
   station: RankedStation
   connector: ConnectorType
+  origin: { latitude: number; longitude: number }
   onClose: () => void
   onMonitor: () => void
+  onSelectRoute?: () => void
+  routeLoading?: boolean
+  routeError?: string
 }) {
+  const openDirections = () => {
+    onSelectRoute?.()
+    window.open(buildGoogleMapsDrivingUrl(origin, station), '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <Modal title={station.name} subtitle={`${station.operator} · ${station.postalCode}`} onClose={onClose}>
       <div className="detail-hero">
@@ -25,7 +51,13 @@ export function StationDetailsModal({
           <b>{station.address}</b>
           <small>Singapore {station.postalCode}</small>
         </div>
-        <Button variant="light" size="xs" leftSection={<Navigation size={16} />}>
+        <Button
+          variant="light"
+          size="xs"
+          leftSection={<Navigation size={16} />}
+          onClick={openDirections}
+          aria-label={`Get driving directions to ${station.name}`}
+        >
           Directions
         </Button>
       </div>
@@ -62,6 +94,22 @@ export function StationDetailsModal({
           <b>{station.estimatedCost === null ? 'Unknown' : `$${station.estimatedCost.toFixed(2)}`}</b>
         </div>
         <div>
+          <Navigation />
+          <span>Travel time</span>
+          <b>
+            {routeLoading
+              ? 'Loading…'
+              : station.travelMinutes === null
+                ? 'Unavailable'
+                : `${station.travelMinutes} min`}
+          </b>
+          <small className="travel-source-note">
+            {station.travelSource === 'OneMap'
+              ? 'OneMap road route'
+              : 'Straight-line estimate — not road travel time'}
+          </small>
+        </div>
+        <div>
           <MapPin />
           <span>Parking estimate</span>
           <b>
@@ -71,6 +119,20 @@ export function StationDetailsModal({
           </b>
         </div>
       </div>
+      {routeError && (
+        <div className="data-note route-error-note" role="alert">
+          <Navigation size={16} />
+          <div>
+            <b>Road route unavailable</b>
+            <p>
+              {routeError}{' '}
+              {station.travelSource === 'OneMap'
+                ? 'The OneMap travel time remains available, but the road line could not be drawn.'
+                : 'The displayed fallback is clearly marked as a straight-line estimate.'}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="parking-detail">
         <b>Parking</b>
         <p>{station.parking?.publishedRateText ?? 'Parking information is unavailable for this station.'}</p>

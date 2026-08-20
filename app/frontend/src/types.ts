@@ -90,6 +90,15 @@ export interface RecommendationResponse {
   dataStatus: SearchResponse['dataStatus']
 }
 
+export type RouteCoordinate = [latitude: number, longitude: number]
+
+export interface DrivingRoute {
+  distanceKm: number
+  travelMinutes: number
+  coordinates: RouteCoordinate[]
+  source: 'OneMap'
+}
+
 export interface MonitorEvent {
   id: string
   type: string

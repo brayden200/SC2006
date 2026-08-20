@@ -1,6 +1,7 @@
 import type {
   ConnectorPreference,
   ConnectorType,
+  DrivingRoute,
   IntegrationProviderStatus,
   Monitor,
   RankedStation,
@@ -39,6 +40,18 @@ export const api = {
   },
   getStation(id: string) {
     return request<Station>(`/stations/${id}`)
+  },
+  getDrivingRoute(
+    origin: Pick<StationLocation, 'latitude' | 'longitude'>,
+    destination: Pick<StationLocation, 'latitude' | 'longitude'>,
+  ) {
+    const query = new URLSearchParams({
+      startLat: String(origin.latitude),
+      startLng: String(origin.longitude),
+      endLat: String(destination.latitude),
+      endLng: String(destination.longitude),
+    })
+    return request<DrivingRoute>(`/routes/driving?${query}`)
   },
   searchStationOptions(query: string) {
     return request<{ stations: StationOption[] }>(`/stations/options?query=${encodeURIComponent(query)}`)
@@ -112,6 +125,10 @@ export interface StationOption {
   id: string
   name: string
   address: string
+}
+interface StationLocation {
+  latitude: number
+  longitude: number
 }
 export interface CompareResponse {
   connector: ConnectorPreference

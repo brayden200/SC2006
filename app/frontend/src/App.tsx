@@ -115,7 +115,8 @@ export default function App() {
             <Menu />
           </button>
           <div className="mobile-brand">
-            <Zap size={18} /> ChargeWise SG
+            <Zap size={18} />
+            <span>ChargeWise SG</span>
           </div>
           <div className="live-indicator">
             <span /> {providerLabel}

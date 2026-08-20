@@ -73,7 +73,9 @@ export function StationCard({
           <Clock3 size={17} />
           <b>{station.travelMinutes ?? '—'} min</b>
           <small>
-            {station.travelSource === 'OneMap' ? 'OneMap route' : `${station.distanceKm.toFixed(1)} km est.`}
+            {station.travelSource === 'OneMap'
+              ? 'OneMap road route'
+              : `${station.distanceKm.toFixed(1)} km straight-line estimate · not road time`}
           </small>
         </div>
         <div>

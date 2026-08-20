@@ -10,6 +10,7 @@ interface OneMapSearchResponse {
 interface OneMapRouteResponse {
   status?: number
   status_message?: string
+  route_geometry?: string
   route_summary?: { total_time?: number; total_distance?: number }
 }
 
@@ -97,9 +98,11 @@ export class OneMapService {
       const seconds = Number(payload.route_summary?.total_time)
       const metres = Number(payload.route_summary?.total_distance)
       if (!Number.isFinite(seconds) || !Number.isFinite(metres)) return null
+      const coordinates = payload.route_geometry ? decodeRouteGeometry(payload.route_geometry) : []
       const value = {
         travelMinutes: Math.max(1, Math.round(seconds / 60)),
         distanceKm: Number((metres / 1000).toFixed(2)),
+        coordinates,
         source: 'OneMap' as const,
       }
       this.routeCache.set(cacheKey, { value, expiresAt: Date.now() + 2 * 60_000 })
@@ -111,20 +114,53 @@ export class OneMapService {
   }
 
   private async authorizedJson<T>(url: string): Promise<T> {
-    const token = await this.token()
-    const response = await fetch(url, {
+    let token = await this.token()
+    let response = await fetch(url, {
       headers: { Authorization: token, Accept: 'application/json' },
       signal: AbortSignal.timeout(20_000),
     })
+    if (response.status === 401 && this.hasCredentials()) {
+      this.generatedToken = null
+      token = await this.token(true)
+      response = await fetch(url, {
+        headers: { Authorization: token, Accept: 'application/json' },
+        signal: AbortSignal.timeout(20_000),
+      })
+    }
     if (!response.ok) throw new Error(`OneMap request failed with HTTP ${response.status}`)
+    let payload = (await response.json()) as T
+    if (this.isUnauthorizedPayload(payload) && this.hasCredentials()) {
+      this.generatedToken = null
+      token = await this.token(true)
+      response = await fetch(url, {
+        headers: { Authorization: token, Accept: 'application/json' },
+        signal: AbortSignal.timeout(20_000),
+      })
+      if (!response.ok) throw new Error(`OneMap request failed with HTTP ${response.status}`)
+      payload = (await response.json()) as T
+    }
     this.lastSuccessfulRequest = new Date().toISOString()
     this.lastError = null
-    return response.json() as Promise<T>
+    return payload
   }
 
-  private async token(): Promise<string> {
+  private isUnauthorizedPayload(payload: unknown) {
+    if (!payload || typeof payload !== 'object') return false
+    const value = payload as { error?: unknown; status?: unknown }
+    if (value.status === 401) return true
+    return (
+      typeof value.error === 'string' &&
+      /401|unauthori[sz]ed|invalid token|token has expired/i.test(value.error)
+    )
+  }
+
+  private hasCredentials() {
+    return Boolean(this.config.get<string>('ONEMAP_EMAIL') && this.config.get<string>('ONEMAP_PASSWORD'))
+  }
+
+  private async token(forceManaged = false): Promise<string> {
     const provided = this.config.get<string>('ONEMAP_TOKEN')
-    if (provided) return provided
+    if (!forceManaged && provided) return provided
     if (this.generatedToken && this.generatedToken.expiresAt > Date.now() + 60_000)
       return this.generatedToken.value
     const email = this.config.get<string>('ONEMAP_EMAIL')
@@ -156,5 +192,42 @@ export class OneMapService {
 export interface RouteResult {
   travelMinutes: number
   distanceKm: number
+  coordinates: RouteCoordinate[]
   source: 'OneMap'
+}
+
+export type RouteCoordinate = [latitude: number, longitude: number]
+
+export function decodeRouteGeometry(encoded: string): RouteCoordinate[] {
+  const coordinates: RouteCoordinate[] = []
+  let index = 0
+  let latitude = 0
+  let longitude = 0
+
+  while (index < encoded.length) {
+    const latitudeDelta = decodePolylineValue(encoded, () => index++)
+    latitude += latitudeDelta
+    const longitudeDelta = decodePolylineValue(encoded, () => index++)
+    longitude += longitudeDelta
+    coordinates.push([latitude / 100_000, longitude / 100_000])
+  }
+
+  return coordinates
+}
+
+function decodePolylineValue(encoded: string, nextIndex: () => number) {
+  let result = 0
+  let shift = 0
+  let byte: number
+
+  do {
+    const index = nextIndex()
+    if (index >= encoded.length) throw new Error('Invalid OneMap route geometry')
+    byte = encoded.charCodeAt(index) - 63
+    if (byte < 0 || byte > 63 || shift > 30) throw new Error('Invalid OneMap route geometry')
+    result |= (byte & 0x1f) << shift
+    shift += 5
+  } while (byte >= 0x20)
+
+  return (result & 1) === 1 ? ~(result >> 1) : result >> 1
 }

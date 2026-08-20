@@ -36,4 +36,25 @@ describe('StationsService options', () => {
       },
     ])
   })
+
+  it('returns each canonical station ID only once from search results', async () => {
+    const lta = {
+      isConfigured: () => true,
+      getAllStations: jest.fn().mockResolvedValue([duplicateStation, structuredClone(duplicateStation)]),
+      status: () => ({ state: 'available' }),
+    } as unknown as LtaDataMallService
+    const oneMap = { status: () => ({ state: 'not_checked' }) } as unknown as OneMapService
+    const service = new StationsService(lta, oneMap)
+
+    const result = await service.search({
+      latitude: duplicateStation.latitude,
+      longitude: duplicateStation.longitude,
+      radiusKm: 8,
+      availableOnly: false,
+      includeUnknown: true,
+    })
+
+    expect(result.stations).toHaveLength(1)
+    expect(result.totalMatches).toBe(1)
+  })
 })

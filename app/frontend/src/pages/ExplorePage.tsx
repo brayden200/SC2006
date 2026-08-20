@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ActionIcon, Alert, Button, Checkbox, Loader, Paper, Select, Slider, TextInput } from '@mantine/core'
 import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react'
 import { api } from '../api'
@@ -9,6 +9,7 @@ import { StationDetailsModal } from '../components/StationDetailsModal'
 import type {
   ConnectorPreference,
   ConnectorType,
+  DrivingRoute,
   Page,
   RankedStation,
   RecommendationResponse,
@@ -41,6 +42,10 @@ const weightSets = {
   },
 }
 
+function uniqueById<T extends { id: string }>(items: T[]) {
+  return [...new Map(items.map((item) => [item.id, item])).values()]
+}
+
 export function ExplorePage({
   navigate,
   notify,
@@ -69,12 +74,74 @@ export function ExplorePage({
   const [showComparison, setShowComparison] = useState(false)
   const [details, setDetails] = useState<RankedStation | null>(null)
   const [mapSelectedId, setMapSelectedId] = useState<string>()
+  const [route, setRoute] = useState<DrivingRoute | null>(null)
+  const [routeStationId, setRouteStationId] = useState<string>()
+  const [routeLoading, setRouteLoading] = useState(false)
+  const [routeError, setRouteError] = useState('')
+  const routeRequestId = useRef(0)
   const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number
     longitude: number
     accuracy: number
   } | null>(null)
+
+  const loadRoute = async (
+    station: RankedStation,
+    origin: { latitude: number; longitude: number } | undefined = searchResult?.location,
+  ) => {
+    const requestId = ++routeRequestId.current
+    setRouteStationId(station.id)
+    setRoute(null)
+    setRouteError('')
+    if (!origin) {
+      setRouteError('The search origin is unavailable.')
+      return
+    }
+
+    setRouteLoading(true)
+    try {
+      const nextRoute = await api.getDrivingRoute(origin, station)
+      if (requestId === routeRequestId.current) {
+        setRoute(nextRoute)
+        const routeMetrics = {
+          distanceKm: nextRoute.distanceKm,
+          travelMinutes: nextRoute.travelMinutes,
+          travelSource: 'OneMap' as const,
+        }
+        setRecommendation((current) => {
+          if (!current) return current
+          const ranked = current.ranked.map((item) =>
+            item.id === station.id ? { ...item, ...routeMetrics } : item,
+          )
+          return {
+            ...current,
+            ranked,
+            recommended:
+              current.recommended?.id === station.id
+                ? { ...current.recommended, ...routeMetrics }
+                : current.recommended,
+            alternatives: current.alternatives.map((item) =>
+              item.id === station.id ? { ...item, ...routeMetrics } : item,
+            ),
+          }
+        })
+        setDetails((current) => (current?.id === station.id ? { ...current, ...routeMetrics } : current))
+      }
+    } catch (reason) {
+      if (requestId === routeRequestId.current) {
+        setRouteError((reason as Error).message || 'OneMap could not return a road route.')
+      }
+    } finally {
+      if (requestId === routeRequestId.current) setRouteLoading(false)
+    }
+  }
+
+  const selectStation = (station: RankedStation, openDetails = true) => {
+    setMapSelectedId(station.id)
+    if (openDetails) setDetails(station)
+    void loadRoute(station)
+  }
 
   const runSearch = async () => {
     if (!locationQuery.trim() && !searchCoords) {
@@ -85,6 +152,11 @@ export function ExplorePage({
     setLoading(true)
     setError('')
     setCompareIds([])
+    routeRequestId.current += 1
+    setRoute(null)
+    setRouteStationId(undefined)
+    setRouteLoading(false)
+    setRouteError('')
     try {
       const search = await api.searchStations({
         query: locationQuery,
@@ -98,7 +170,8 @@ export function ExplorePage({
         maxPrice: maxPrice || undefined,
         operator: operator || undefined,
       })
-      setSearchResult(search)
+      const searchStations = uniqueById(search.stations)
+      setSearchResult({ ...search, stations: searchStations })
       const ranked = await api.recommend({
         latitude: search.location.latitude,
         longitude: search.location.longitude,
@@ -114,14 +187,17 @@ export function ExplorePage({
         preferredOperator: operator || undefined,
         ...weightSets[priority],
       })
-      const allowed = new Set(search.stations.map((item) => item.id))
-      ranked.ranked = ranked.ranked.filter((item) => allowed.has(item.id))
+      const allowed = new Set(searchStations.map((item) => item.id))
+      ranked.ranked = uniqueById(ranked.ranked.filter((item) => allowed.has(item.id)))
       ranked.recommended = ranked.ranked[0] ?? null
       ranked.alternatives = ranked.ranked.slice(1, 3)
       setHasSearched(true)
       setAppliedConnector(requestedConnector)
       setRecommendation(ranked)
-      if (ranked.recommended) setMapSelectedId(ranked.recommended.id)
+      if (ranked.recommended) {
+        setMapSelectedId(ranked.recommended.id)
+        void loadRoute(ranked.recommended, search.location)
+      }
       notify(`${ranked.ranked.length} compatible station${ranked.ranked.length === 1 ? '' : 's'} found`)
     } catch (reason) {
       setError((reason as Error).message)
@@ -156,6 +232,7 @@ export function ExplorePage({
 
   const ranked = recommendation?.ranked ?? []
   const compared = ranked.filter((item) => compareIds.includes(item.id))
+  const routeStation = ranked.find((item) => item.id === routeStationId) ?? null
   const toggleCompare = (id: string) => {
     if (compareIds.includes(id)) setCompareIds((items) => items.filter((item) => item !== id))
     else if (compareIds.length < 4) setCompareIds((items) => [...items, id])
@@ -330,7 +407,7 @@ export function ExplorePage({
               <b>Live LTA DataMall charging data</b> · Travel times use{' '}
               {searchResult.dataStatus.oneMap.state === 'available'
                 ? 'OneMap'
-                : 'straight-line distance estimates'}
+                : 'straight-line estimates (not road travel times)'}
               .
             </span>
           </Alert>
@@ -372,7 +449,7 @@ export function ExplorePage({
                   best={index === 0}
                   compared={compareIds.includes(station.id)}
                   onCompare={() => toggleCompare(station.id)}
-                  onDetails={() => setDetails(station)}
+                  onDetails={() => selectStation(station)}
                   onMonitor={() => void monitor(station)}
                   onHover={() => setMapSelectedId(station.id)}
                 />
@@ -384,11 +461,14 @@ export function ExplorePage({
                 connector={appliedConnector}
                 selectedId={mapSelectedId}
                 onSelect={(station) => {
-                  setMapSelectedId(station.id)
-                  setDetails(station)
+                  selectStation(station)
                 }}
                 location={searchResult!.location}
                 currentLocation={currentLocation ?? undefined}
+                route={route}
+                routeStation={routeStation}
+                routeLoading={routeLoading}
+                routeError={routeError}
               />
               <div className="map-disclaimer">
                 <CircleAlert size={15} /> Availability is a snapshot, not a reservation.
@@ -457,7 +537,7 @@ export function ExplorePage({
           onClose={() => setShowComparison(false)}
           onChoose={(station) => {
             setShowComparison(false)
-            setDetails(station)
+            selectStation(station)
             notify(`${station.name} selected`)
           }}
         />
@@ -466,8 +546,12 @@ export function ExplorePage({
         <StationDetailsModal
           station={details}
           connector={details.selectedConnector}
+          origin={searchResult!.location}
           onClose={() => setDetails(null)}
           onMonitor={() => void monitor(details)}
+          onSelectRoute={() => selectStation(details, false)}
+          routeLoading={routeStationId === details.id && routeLoading}
+          routeError={routeStationId === details.id ? routeError : ''}
         />
       )}
     </div>

@@ -163,6 +163,7 @@ export class StationsService {
       stations = stations.filter((station) => this.operatorKey(station.operator) === requestedOperator)
     }
 
+    stations = [...new Map(stations.map((station) => [station.id, station])).values()]
     stations.sort((a, b) => a.distanceKm - b.distanceKm)
     const totalMatches = stations.length
     stations = stations.slice(0, dto.limit ?? 50)

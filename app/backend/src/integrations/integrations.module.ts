@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { IntegrationsController } from './integrations.controller'
+import { RoutesController } from './onemap/routes.controller'
 import { LtaDataMallService } from './lta/lta-datamall.service'
 import { OneMapService } from './onemap/onemap.service'
 import { ParkingService } from './parking/parking.service'
@@ -8,7 +9,7 @@ import { UraParkingService } from './parking/providers/ura-parking.service'
 
 @Module({
   providers: [LtaDataMallService, OneMapService, UraParkingService, HdbParkingService, ParkingService],
-  controllers: [IntegrationsController],
+  controllers: [IntegrationsController, RoutesController],
   exports: [LtaDataMallService, OneMapService, UraParkingService, HdbParkingService, ParkingService],
 })
 export class IntegrationsModule {}
