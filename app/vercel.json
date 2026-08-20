@@ -1,12 +1,13 @@
 {
     "services": {
         "frontend": {
-            "root": "frontend",
-            "framework": "vite"
-        },
-        "backend": {
-            "root": "backend"
-        }
+        "root": "frontend",
+        "framework": "vite"
+    },
+    "backend": {
+        "root": "backend",
+        "entrypoint": "src/main.ts"
+    }
     },
     "rewrites": [
         {
