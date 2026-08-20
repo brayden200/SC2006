@@ -54,6 +54,29 @@ describe('OneMapService', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('reuses a cached route when GPS readings differ within four decimal places', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        route_summary: { total_time: 300, total_distance: 2000 },
+      }),
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+    const service = new OneMapService(new ConfigService({ ONEMAP_TOKEN: 'test-token' }))
+
+    await service.drivingRoute(
+      { latitude: 1.300001, longitude: 103.800001 },
+      { latitude: 1.320001, longitude: 103.840001 },
+    )
+    await service.drivingRoute(
+      { latitude: 1.300002, longitude: 103.800002 },
+      { latitude: 1.320002, longitude: 103.840002 },
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toContain('start=1.300001%2C103.800001')
+  })
+
   it('refreshes through configured credentials after a token returns 401', async () => {
     const fetchMock = jest
       .fn()

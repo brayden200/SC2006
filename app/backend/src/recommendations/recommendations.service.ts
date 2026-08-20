@@ -4,6 +4,8 @@ import { OneMapService, ParkingService, RouteResult } from '../integrations'
 import { StationsService } from '../stations/stations.service'
 import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto'
 
+const ROUTE_CONCURRENCY = 4
+
 @Injectable()
 export class RecommendationsService {
   constructor(
@@ -31,16 +33,22 @@ export class RecommendationsService {
           ? null
           : dto
     const routes = new Map<string, RouteResult | null>()
-    for (const station of search.stations) {
-      if (!routeOrigin) {
-        routes.set(station.id, null)
-        continue
-      }
-      try {
-        routes.set(station.id, await this.oneMap.drivingRoute(routeOrigin, station))
-      } catch {
-        routes.set(station.id, null)
-      }
+    if (!routeOrigin) {
+      search.stations.forEach((station) => routes.set(station.id, null))
+    } else {
+      const workerCount = Math.min(ROUTE_CONCURRENCY, search.stations.length)
+      await Promise.all(
+        Array.from({ length: workerCount }, async (_, workerIndex) => {
+          for (let index = workerIndex; index < search.stations.length; index += workerCount) {
+            const station = search.stations[index]
+            try {
+              routes.set(station.id, await this.oneMap.drivingRoute(routeOrigin, station))
+            } catch {
+              routes.set(station.id, null)
+            }
+          }
+        }),
+      )
     }
     const ranked = search.stations
       .map((station) => this.rankStation(station, dto, routes.get(station.id) ?? null))

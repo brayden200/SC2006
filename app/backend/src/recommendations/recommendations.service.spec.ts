@@ -75,14 +75,22 @@ describe('RecommendationsService', () => {
 
   it('queries OneMap road times before returning the station list', async () => {
     drivingRoute.mockClear()
-    drivingRoute.mockResolvedValue({
-      travelMinutes: 7,
-      distanceKm: 2.1,
-      coordinates: [
-        [1.3048, 103.8318],
-        [1.305, 103.832],
-      ],
-      source: 'OneMap',
+    let activeRequests = 0
+    let peakActiveRequests = 0
+    drivingRoute.mockImplementation(async () => {
+      activeRequests += 1
+      peakActiveRequests = Math.max(peakActiveRequests, activeRequests)
+      await new Promise((resolve) => setImmediate(resolve))
+      activeRequests -= 1
+      return {
+        travelMinutes: 7,
+        distanceKm: 2.1,
+        coordinates: [
+          [1.3048, 103.8318],
+          [1.305, 103.832],
+        ],
+        source: 'OneMap',
+      }
     })
 
     const result = await service.recommend({
@@ -93,8 +101,40 @@ describe('RecommendationsService', () => {
     })
 
     expect(drivingRoute).toHaveBeenCalledTimes(stationsFixture.length)
+    expect(peakActiveRequests).toBe(stationsFixture.length)
     expect(result.ranked.every((station) => station.travelSource === 'OneMap')).toBe(true)
     expect(result.ranked.every((station) => station.travelMinutes === 7)).toBe(true)
+    drivingRoute.mockRejectedValue(new Error('Routing unavailable'))
+  })
+
+  it('limits concurrent OneMap route requests to four', async () => {
+    const stationBatch = Array.from({ length: 6 }, (_, index) => ({
+      ...stationsFixture[0],
+      id: `lta-concurrency-${index}`,
+      latitude: stationsFixture[0].latitude + index * 0.001,
+      longitude: stationsFixture[0].longitude + index * 0.001,
+    }))
+    ;(lta.getAllStations as jest.Mock).mockResolvedValueOnce(stationBatch)
+    drivingRoute.mockClear()
+    let activeRequests = 0
+    let peakActiveRequests = 0
+    drivingRoute.mockImplementation(async () => {
+      activeRequests += 1
+      peakActiveRequests = Math.max(peakActiveRequests, activeRequests)
+      await new Promise((resolve) => setImmediate(resolve))
+      activeRequests -= 1
+      return null
+    })
+
+    await service.recommend({
+      latitude: 1.3048,
+      longitude: 103.8318,
+      connector: 'Any',
+      radiusKm: 30,
+    })
+
+    expect(drivingRoute).toHaveBeenCalledTimes(stationBatch.length)
+    expect(peakActiveRequests).toBe(4)
     drivingRoute.mockRejectedValue(new Error('Routing unavailable'))
   })
 

@@ -86,7 +86,7 @@ export class OneMapService {
     end: Pick<LocationInput, 'latitude' | 'longitude'>,
   ): Promise<RouteResult | null> {
     if (!this.isConfigured()) return null
-    const cacheKey = `${start.latitude.toFixed(5)},${start.longitude.toFixed(5)}:${end.latitude.toFixed(5)},${end.longitude.toFixed(5)}`
+    const cacheKey = `${start.latitude.toFixed(4)},${start.longitude.toFixed(4)}:${end.latitude.toFixed(4)},${end.longitude.toFixed(4)}`
     const cached = this.routeCache.get(cacheKey)
     if (cached && cached.expiresAt > Date.now()) return structuredClone(cached.value)
     const url = new URL(`${this.baseUrl}/api/public/routingsvc/route`)

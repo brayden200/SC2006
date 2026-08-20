@@ -8,7 +8,7 @@ export class SearchStationsDto {
   @IsOptional() @Type(() => Number) @IsNumber() latitude?: number
   @IsOptional() @Type(() => Number) @IsNumber() longitude?: number
   @IsOptional() @Type(() => Number) @Min(1) @Max(50) radiusKm?: number = 8
-  @IsOptional() @Type(() => Number) @Min(1) @Max(200) limit?: number = 50
+  @IsOptional() @Type(() => Number) @Min(1) @Max(50) limit?: number = 50
   @IsOptional() @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO']) connector?: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO'
   @IsOptional() @Type(() => Number) @Min(0) minPowerKw?: number
   @IsOptional() @Type(() => Number) @Min(0) maxPrice?: number
