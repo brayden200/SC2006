@@ -1,4 +1,5 @@
 import { Modal as MantineModal, Text, Title } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import type { ReactNode } from 'react'
 
 export function Modal({
@@ -7,17 +8,24 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  mobileFullScreen = false,
+  bodyClassName,
 }: {
   title: string
   subtitle?: string
   children: ReactNode
   onClose: () => void
   wide?: boolean
+  mobileFullScreen?: boolean
+  bodyClassName?: string
 }) {
+  const isMobile = useMediaQuery('(max-width: 620px)')
+
   return (
     <MantineModal
       opened
       onClose={onClose}
+      fullScreen={mobileFullScreen && isMobile}
       size={wide ? 'min(1000px, calc(100vw - 32px))' : 570}
       title={
         <div className="modal-title">
@@ -26,7 +34,11 @@ export function Modal({
         </div>
       }
       overlayProps={{ backgroundOpacity: 0.52, blur: 2 }}
-      classNames={{ content: 'cw-modal', header: 'cw-modal-header', body: 'cw-modal-body' }}
+      classNames={{
+        content: 'cw-modal',
+        header: 'cw-modal-header',
+        body: ['cw-modal-body', bodyClassName].filter(Boolean).join(' '),
+      }}
       closeButtonProps={{ 'aria-label': 'Close' }}
     >
       {children}

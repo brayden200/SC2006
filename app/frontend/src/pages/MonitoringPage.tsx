@@ -273,6 +273,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
             setAlternativeMonitor(null)
           }}
           wide
+          mobileFullScreen
         >
           {alternatives.alternatives.length === 0 ? (
             <div className="empty-state compact">
@@ -285,11 +286,7 @@ export function MonitoringPage({ notify }: { notify: (message: string) => void }
               {alternatives.alternatives.map((station, index) => {
                 const plug = station.connectors.find((item) => item.type === alternativeMonitor.connector)!
                 return (
-                  <Card
-                    component="article"
-                    key={station.id}
-                    className={index === 0 ? 'recommended-alt' : ''}
-                  >
+                  <Card component="article" key={station.id} className={index === 0 ? 'recommended-alt' : ''}>
                     {index === 0 && (
                       <Badge className="best-ribbon" unstyled leftSection={<Zap size={13} />}>
                         Best alternative
