@@ -1672,11 +1672,11 @@ select:focus-visible {
     flex-direction: column;
   }
   .station-list {
-    order: 1;
+    order: 2;
     width: 100%;
   }
   .map-column {
-    order: 2;
+    order: 1;
     width: 100%;
   }
   .compare-tray {
