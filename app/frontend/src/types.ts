@@ -1,7 +1,5 @@
 export type ConnectorType = 'CCS2' | 'Type 2' | 'CHAdeMO'
-export type ConnectorPreference = 'Any' | ConnectorType
 export type RankingPriority = 'Balanced' | 'Availability' | 'Speed' | 'Savings'
-export type Page = 'explore'
 
 export interface ParkingInfo {
   carParkId: string
@@ -62,12 +60,6 @@ export interface SearchMetadata {
     ltaDataMall: IntegrationProviderStatus
     oneMap: IntegrationProviderStatus
   }
-  operators: string[]
-  suggestions: string[]
-}
-
-export interface SearchResponse extends SearchMetadata {
-  stations: Array<Station & { distanceKm: number }>
 }
 
 export interface IntegrationProviderStatus {

@@ -30,11 +30,11 @@ URA parking data is optional. To enable it, configure `URA_ACCESS_KEY`; `URA_TOK
 
 ## Implemented use cases
 
-| Use case                       | Implementation                                                                                                                                                                                                              |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UC-01 Find compatible stations | Address/current-location search, LTA compatibility and availability, radius/power/charging-price/operator filters, map/list views, cached-data labeling, and official parking enrichment where a conservative match exists. |
-| UC-02 Sort charging options    | Existing weighted ranking with OneMap travel, four priority presets, connector selection, explanations, hourly charging prices, and published parking rates.                                                   |
-| UC-03 Route to a station       | OneMap driving routes from the driver's current location, with route distance, travel time, map line, and clearly labelled fallback estimates.                                                                              |
+| Use case                       | Implementation                                                                                                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UC-01 Find compatible stations | Address/current-location search, LTA compatibility and availability, map/list views, cached-data labeling, and official parking enrichment where a conservative match exists. |
+| UC-02 Sort charging options    | Weighted ranking with OneMap travel, four priority presets, automatic connector selection, explanations, hourly charging prices, and published parking rates.                 |
+| UC-03 Route to a station       | OneMap driving routes from the driver's current location, with route distance, travel time, map line, and clearly labelled fallback estimates.                                |
 
 There are no accounts, authentication, charging logs, charging history, payments, reservations, cloud sync, or push notifications.
 

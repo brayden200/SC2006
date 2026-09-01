@@ -2,11 +2,10 @@ import { memo } from 'react'
 import { Badge, Button, Card } from '@mantine/core'
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Sparkles } from 'lucide-react'
 import { timeAgo } from '../lib'
-import type { ConnectorPreference, RankedStation } from '../types'
+import type { RankedStation } from '../types'
 
 interface Props {
   station: RankedStation
-  connector: ConnectorPreference
   rank: number
   best?: boolean
   onDetails: (station: RankedStation) => void
@@ -24,17 +23,8 @@ export function getCardRoadTravel(
   }
 }
 
-export const StationCard = memo(function StationCard({
-  station,
-  connector,
-  rank,
-  best,
-  onDetails,
-  onHover,
-}: Props) {
-  const selectedConnector =
-    station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector)
-  const plug = station.connectors.find((item) => item.type === selectedConnector)
+export const StationCard = memo(function StationCard({ station, rank, best, onDetails, onHover }: Props) {
+  const plug = station.connectors.find((item) => item.type === station.selectedConnector)
   if (!plug) return null
   const isAvailable = plug.status === 'available' && (plug.available ?? 0) > 0
   const roadTravel = getCardRoadTravel(station)

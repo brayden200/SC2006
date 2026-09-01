@@ -219,7 +219,7 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
           {error}
         </Alert>
       )}
-      {searchResult?.dataStatus.isCached ? (
+      {searchResult?.dataStatus.isCached && (
         <Alert className="cache-banner" color="yellow" icon={<AlertTriangle size={16} />}>
           <span>
             <b>Using the latest cached LTA snapshot</b> · Updated{' '}
@@ -230,18 +230,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
             . {searchResult.dataStatus.fallbackReason || 'Live availability is never guaranteed.'}
           </span>
         </Alert>
-      ) : (
-        searchResult && (
-          <Alert className="cache-banner" color="green">
-            <span>
-              <b>Live LTA DataMall charging data</b> · Travel times use{' '}
-              {searchResult.dataStatus.oneMap.state === 'available'
-                ? 'OneMap'
-                : 'straight-line estimates (not road travel times)'}
-              .
-            </span>
-          </Alert>
-        )
       )}
 
       {loading && ranked.length === 0 ? (
@@ -274,7 +262,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
                 <StationCard
                   key={station.id}
                   station={station}
-                  connector="Any"
                   rank={index + 1}
                   best={index === 0}
                   onDetails={selectStation}
@@ -285,7 +272,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
             <aside className="map-column">
               <MapPanel
                 stations={ranked}
-                connector="Any"
                 selectedId={mapSelectedId}
                 onSelect={selectStation}
                 location={searchResult!.location}
@@ -319,7 +305,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
       {details && (
         <StationDetailsModal
           station={details}
-          connector={details.selectedConnector}
           onClose={() => setDetails(null)}
           onShowRoute={() => void loadRoute(details)}
           routeVisible={routeStationId === details.id && route !== null}

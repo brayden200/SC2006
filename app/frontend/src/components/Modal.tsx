@@ -7,7 +7,6 @@ export function Modal({
   subtitle,
   children,
   onClose,
-  wide = false,
   mobileFullScreen = false,
   bodyClassName,
 }: {
@@ -15,7 +14,6 @@ export function Modal({
   subtitle?: string
   children: ReactNode
   onClose: () => void
-  wide?: boolean
   mobileFullScreen?: boolean
   bodyClassName?: string
 }) {
@@ -26,7 +24,7 @@ export function Modal({
       opened
       onClose={onClose}
       fullScreen={mobileFullScreen && isMobile}
-      size={wide ? 'min(1000px, calc(100vw - 32px))' : 570}
+      size={570}
       title={
         <div className="modal-title">
           <Title order={2}>{title}</Title>

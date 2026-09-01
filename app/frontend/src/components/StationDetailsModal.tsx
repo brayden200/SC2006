@@ -1,7 +1,7 @@
 import { Badge, Button, Card } from '@mantine/core'
 import { BatteryCharging, Database, MapPin, Navigation, PlugZap } from 'lucide-react'
 import { timeAgo } from '../lib'
-import type { ConnectorType, RankedStation } from '../types'
+import type { RankedStation } from '../types'
 import { Modal } from './Modal'
 
 export function getRouteButtonLabel(routeVisible: boolean) {
@@ -10,7 +10,6 @@ export function getRouteButtonLabel(routeVisible: boolean) {
 
 export function StationDetailsModal({
   station,
-  connector,
   onClose,
   onShowRoute,
   routeVisible = false,
@@ -18,7 +17,6 @@ export function StationDetailsModal({
   routeError = '',
 }: {
   station: RankedStation
-  connector: ConnectorType
   onClose: () => void
   onShowRoute: () => void
   routeVisible?: boolean
@@ -57,7 +55,7 @@ export function StationDetailsModal({
         <div className="connector-list">
           {station.connectors.map((item) => (
             <Card
-              className={`connector-item ${item.type === connector ? 'selected' : ''}`}
+              className={`connector-item ${item.type === station.selectedConnector ? 'selected' : ''}`}
               key={item.type}
               padding={0}
             >

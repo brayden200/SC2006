@@ -14,11 +14,4 @@ export class RecommendationDto {
   @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO'])
   connector: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO' = 'Any'
   @IsOptional() @Type(() => Number) @Min(1) @Max(50) radiusKm?: number = 8
-  @IsOptional() @Type(() => Number) @Min(0) maxPrice?: number
-  @IsOptional() @Type(() => Number) @Min(0) minPowerKw?: number
-  @IsOptional() @IsBoolean() availableOnly?: boolean
-  @IsOptional() @IsBoolean() includeUnknown?: boolean
-  @IsOptional() @IsString() operator?: string
-  @IsOptional() @IsString() preferredOperator?: string
-  @IsOptional() @IsString() evaluationAt?: string
 }

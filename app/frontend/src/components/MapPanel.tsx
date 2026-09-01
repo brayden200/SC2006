@@ -13,7 +13,7 @@ import {
 } from 'react-leaflet'
 import { LocateFixed, Minus, Navigation, Plus } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
-import type { ConnectorPreference, DrivingRoute, RankedStation } from '../types'
+import type { DrivingRoute, RankedStation } from '../types'
 
 interface MapLocation {
   latitude: number
@@ -23,7 +23,6 @@ interface MapLocation {
 
 interface MapPanelProps {
   stations: RankedStation[]
-  connector: ConnectorPreference
   selectedId?: string
   onSelect: (station: RankedStation) => void
   location: MapLocation
@@ -105,7 +104,6 @@ function stationIcon(rank: number, available: boolean, selected: boolean) {
 
 export const MapPanel = memo(function MapPanel({
   stations,
-  connector,
   selectedId,
   onSelect,
   location,
@@ -132,13 +130,11 @@ export const MapPanel = memo(function MapPanel({
   const icons = useMemo(
     () =>
       stations.map((station, index) => {
-        const selectedConnector =
-          station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector)
         const available =
-          (station.connectors.find((item) => item.type === selectedConnector)?.available ?? 0) > 0
+          (station.connectors.find((item) => item.type === station.selectedConnector)?.available ?? 0) > 0
         return stationIcon(index + 1, available, selectedId === station.id)
       }),
-    [connector, selectedId, stations],
+    [selectedId, stations],
   )
 
   const zoomIn = () => map?.zoomIn()
@@ -197,9 +193,7 @@ export const MapPanel = memo(function MapPanel({
         )}
 
         {stations.map((station, index) => {
-          const selectedConnector =
-            station.selectedConnector ?? (connector === 'Any' ? station.connectors[0]?.type : connector)
-          const stationConnector = station.connectors.find((item) => item.type === selectedConnector)
+          const stationConnector = station.connectors.find((item) => item.type === station.selectedConnector)
           const selected = selectedId === station.id
           return (
             <Marker

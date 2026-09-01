@@ -72,8 +72,6 @@ export class RecommendationsService {
         totalMatches: search.totalMatches,
         location: search.location,
         dataStatus: search.dataStatus,
-        operators: search.operators,
-        suggestions: search.suggestions,
       },
     }
   }
