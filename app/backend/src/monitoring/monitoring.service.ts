@@ -101,11 +101,7 @@ export class MonitoringService {
       longitude: query.longitude,
       connector: monitor.connector,
       radiusKm: query.radiusKm ?? 12,
-      availabilityWeight: 40,
-      travelWeight: 30,
-      speedWeight: 15,
-      priceWeight: 10,
-      preferenceWeight: 5,
+      rankingPriority: 'Availability',
       availableOnly: true,
     })
     const ranked = result.ranked.filter((item) => {

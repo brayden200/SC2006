@@ -1,77 +1,23 @@
 import { useCallback, useRef, useState } from 'react'
-import {
-  ActionIcon,
-  Alert,
-  Button,
-  Checkbox,
-  Group,
-  Loader,
-  Paper,
-  Select,
-  Slider,
-  Stack,
-  TextInput,
-} from '@mantine/core'
-import { AlertTriangle, CircleAlert, LocateFixed, Search, SlidersHorizontal, X } from 'lucide-react'
+import { ActionIcon, Alert, Button, Loader, Paper, Select, Stack, TextInput } from '@mantine/core'
+import { AlertTriangle, CircleAlert, LocateFixed, Search } from 'lucide-react'
 import { api } from '../api'
 import { ComparisonModal } from '../components/ComparisonModal'
 import { MapPanel } from '../components/MapPanel'
 import { StationCard } from '../components/StationCard'
 import { StationDetailsModal } from '../components/StationDetailsModal'
 import type {
-  ConnectorPreference,
   DrivingRoute,
-  Page,
   RankedStation,
   RecommendationResponse,
+  RankingPriority,
   SearchMetadata,
-  Station,
 } from '../types'
 
-const weightSets = {
-  Balanced: {
-    availabilityWeight: 30,
-    travelWeight: 25,
-    speedWeight: 20,
-    priceWeight: 15,
-    preferenceWeight: 10,
-  },
-  Availability: {
-    availabilityWeight: 50,
-    travelWeight: 20,
-    speedWeight: 15,
-    priceWeight: 10,
-    preferenceWeight: 5,
-  },
-  Speed: { availabilityWeight: 25, travelWeight: 20, speedWeight: 40, priceWeight: 10, preferenceWeight: 5 },
-  Savings: {
-    availabilityWeight: 25,
-    travelWeight: 20,
-    speedWeight: 10,
-    priceWeight: 40,
-    preferenceWeight: 5,
-  },
-}
-
-export function ExplorePage({
-  navigate,
-  notify,
-}: {
-  navigate: (page: Page) => void
-  notify: (message: string) => void
-}) {
+export function ExplorePage({ notify }: { notify: (message: string) => void }) {
   const [locationQuery, setLocationQuery] = useState('')
-  const [connector, setConnector] = useState<ConnectorPreference>('Any')
-  const [appliedConnector, setAppliedConnector] = useState<ConnectorPreference>('Any')
-  const [radiusKm, setRadiusKm] = useState(8)
-  const [availableOnly, setAvailableOnly] = useState(true)
-  const [includeUnknown, setIncludeUnknown] = useState(false)
-  const [minPowerKw, setMinPowerKw] = useState(0)
-  const [maxPrice, setMaxPrice] = useState('')
-  const [operator, setOperator] = useState('')
-  const [priority, setPriority] = useState<keyof typeof weightSets>('Balanced')
-  const [energyKwh, setEnergyKwh] = useState(35)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [priority, setPriority] = useState<RankingPriority>('Balanced')
+  const energyKwh = 35
   const [searchResult, setSearchResult] = useState<SearchMetadata | null>(null)
   const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -177,11 +123,10 @@ export function ExplorePage({
   }, [])
 
   const runSearch = async () => {
-    if (!locationQuery.trim() && !searchCoords && !navigator.geolocation) {
+    if (!locationQuery.trim() && !searchCoords) {
       setError('Enter an address or postal code, or use your current location.')
       return
     }
-    const requestedConnector = connector
     setLoading(true)
     setError('')
     compareIdsRef.current = []
@@ -192,33 +137,15 @@ export function ExplorePage({
     setRouteLoading(false)
     setRouteError('')
     try {
-      let listRouteOrigin: { latitude: number; longitude: number } | null = null
-      try {
-        const current = await requestCurrentLocation()
-        listRouteOrigin = { latitude: current.latitude, longitude: current.longitude }
-      } catch (reason) {
-        if (!locationQuery.trim() && !searchCoords) throw reason
-      }
       const ranked = await api.recommend({
         query: locationQuery || undefined,
-        latitude: searchCoords?.latitude ?? (locationQuery.trim() ? undefined : listRouteOrigin?.latitude),
-        longitude: searchCoords?.longitude ?? (locationQuery.trim() ? undefined : listRouteOrigin?.longitude),
-        radiusKm,
-        connector: requestedConnector,
+        latitude: searchCoords?.latitude,
+        longitude: searchCoords?.longitude,
+        connector: 'Any',
+        rankingPriority: priority,
         energyKwh,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        minPowerKw: minPowerKw || undefined,
-        availableOnly,
-        includeUnknown,
-        operator: operator || undefined,
-        preferredOperator: operator || undefined,
-        routeFromCurrentLocation: true,
-        routeOriginLatitude: listRouteOrigin?.latitude,
-        routeOriginLongitude: listRouteOrigin?.longitude,
-        ...weightSets[priority],
       })
       setHasSearched(true)
-      setAppliedConnector(requestedConnector)
       setSearchResult(ranked.search)
       setRecommendation(ranked)
       if (ranked.recommended) {
@@ -270,27 +197,6 @@ export function ExplorePage({
     compareIdsRef.current = []
     setCompareIds([])
   }, [])
-  const monitor = useCallback(
-    async (station: Station) => {
-      const selectedConnector =
-        station.selectedConnector ??
-        (appliedConnector === 'Any' ? station.connectors[0]?.type : appliedConnector)
-      if (!selectedConnector) {
-        notify('No compatible connector is available at this station')
-        return
-      }
-      try {
-        await api.createMonitor(station.id, selectedConnector)
-        notify(`Monitoring ${station.name} (${selectedConnector}) for 90 minutes`)
-        setDetails(null)
-        navigate('monitoring')
-      } catch (reason) {
-        notify((reason as Error).message)
-      }
-    },
-    [appliedConnector, navigate, notify],
-  )
-
   return (
     <div className="page explore-page">
       <section className="page-heading">
@@ -299,7 +205,9 @@ export function ExplorePage({
           <h1>
             Find your best charge, <em>not just the nearest.</em>
           </h1>
-          <p>Live availability, travel time, speed and visit cost—ranked around what matters to you.</p>
+          <p>
+            Choose a location and what matters most. Chargers are scored on savings, speed and availability.
+          </p>
         </div>
       </section>
 
@@ -323,22 +231,10 @@ export function ExplorePage({
             }
           />
           <Select
-            label="Connector"
-            value={connector}
-            onChange={(value) => setConnector((value ?? 'Any') as ConnectorPreference)}
-            data={[
-              { value: 'Any', label: 'Any connector' },
-              { value: 'CCS2', label: 'CCS2' },
-              { value: 'Type 2', label: 'Type 2' },
-              { value: 'CHAdeMO', label: 'CHAdeMO' },
-            ]}
-            allowDeselect={false}
-          />
-          <Select
             label="Ranking priority"
             value={priority}
-            onChange={(value) => setPriority((value ?? 'Balanced') as keyof typeof weightSets)}
-            data={Object.keys(weightSets)}
+            onChange={(value) => setPriority((value ?? 'Balanced') as RankingPriority)}
+            data={['Balanced', 'Availability', 'Speed', 'Savings']}
             allowDeselect={false}
           />
           <Button
@@ -350,73 +246,6 @@ export function ExplorePage({
             Search
           </Button>
         </div>
-        <Group className="quick-filters" gap={7}>
-          <Button
-            size="compact-sm"
-            variant={availableOnly ? 'light' : 'default'}
-            onClick={() => setAvailableOnly((value) => !value)}
-          >
-            Available now
-          </Button>
-          <Button
-            size="compact-sm"
-            variant={minPowerKw === 100 ? 'light' : 'default'}
-            onClick={() => setMinPowerKw((value) => (value === 100 ? 0 : 100))}
-          >
-            100+ kW fast
-          </Button>
-          <Button
-            size="compact-sm"
-            variant="default"
-            leftSection={<SlidersHorizontal size={14} />}
-            rightSection={filtersOpen ? <X size={13} /> : undefined}
-            onClick={() => setFiltersOpen((value) => !value)}
-          >
-            All filters
-          </Button>
-        </Group>
-        {filtersOpen && (
-          <div className="advanced-filters">
-            <div className="filter-slider">
-              <span>Search radius</span>
-              <b>{radiusKm} km</b>
-              <Slider min={2} max={25} value={radiusKm} onChange={setRadiusKm} />
-            </div>
-            <div className="filter-slider">
-              <span>Energy to add</span>
-              <b>{energyKwh} kWh</b>
-              <Slider min={10} max={80} step={5} value={energyKwh} onChange={setEnergyKwh} />
-            </div>
-            <Select
-              label="Maximum price"
-              value={maxPrice}
-              onChange={(value) => setMaxPrice(value ?? '')}
-              data={[
-                { value: '', label: 'Any / unknown allowed' },
-                { value: '0.50', label: 'Up to $0.50/kWh' },
-                { value: '0.60', label: 'Up to $0.60/kWh' },
-                { value: '0.70', label: 'Up to $0.70/kWh' },
-              ]}
-              allowDeselect={false}
-            />
-            <Select
-              label="Operator"
-              value={operator}
-              onChange={(value) => setOperator(value ?? '')}
-              data={[
-                { value: '', label: 'Any operator' },
-                ...(searchResult?.operators ?? []).map((item) => ({ value: item, label: item })),
-              ]}
-              searchable
-              allowDeselect={false}
-            />
-            <Checkbox
-              label="Include unknown availability"
-              checked={includeUnknown}
-              onChange={(event) => setIncludeUnknown(event.currentTarget.checked)}
-            />
-          </div>
-        )}
       </Paper>
 
       {error && (
@@ -453,7 +282,7 @@ export function ExplorePage({
         <div className="page-loading">
           <Loader size="md" />
           <h3>Ranking compatible chargers…</h3>
-          <p>Balancing availability, travel, speed and charging plus parking cost.</p>
+          <p>Scoring savings, speed and availability. Equal scores are ordered by distance.</p>
         </div>
       ) : ranked.length > 0 ? (
         <>
@@ -466,7 +295,7 @@ export function ExplorePage({
                 compatible options
               </h2>
               <p>
-                Near {searchResult?.location.label} · ranked for {priority.toLowerCase()}
+                Near {searchResult?.location.label} · {priority.toLowerCase()} priority
               </p>
             </div>
             <span className="result-updated">
@@ -479,13 +308,12 @@ export function ExplorePage({
                 <StationCard
                   key={station.id}
                   station={station}
-                  connector={appliedConnector}
+                  connector="Any"
                   rank={index + 1}
                   best={index === 0}
                   compared={compareIds.includes(station.id)}
                   onCompare={toggleCompare}
                   onDetails={selectStation}
-                  onMonitor={monitor}
                   onHover={selectMapStation}
                 />
               ))}
@@ -493,7 +321,7 @@ export function ExplorePage({
             <aside className="map-column">
               <MapPanel
                 stations={ranked}
-                connector={appliedConnector}
+                connector="Any"
                 selectedId={mapSelectedId}
                 onSelect={selectStation}
                 location={searchResult!.location}
@@ -514,22 +342,7 @@ export function ExplorePage({
         <div className="empty-state">
           <Search size={34} />
           <h2>No compatible stations found</h2>
-          <p>Try one of these ways to broaden your search.</p>
-          <div>
-            {(searchResult?.suggestions ?? []).map((item) => (
-              <Button
-                variant="default"
-                size="compact-sm"
-                key={item}
-                onClick={() => {
-                  if (item.includes('radius')) setRadiusKm(20)
-                  if (item.includes('unknown')) setIncludeUnknown(true)
-                }}
-              >
-                {item}
-              </Button>
-            ))}
-          </div>
+          <p>Try a different address or postal code.</p>
         </div>
       ) : (
         <div className="empty-state">
@@ -565,7 +378,7 @@ export function ExplorePage({
       {showComparison && (
         <ComparisonModal
           stations={compared}
-          connector={appliedConnector}
+          connector="Any"
           energyKwh={energyKwh}
           location={searchResult!.location}
           onClose={() => setShowComparison(false)}
@@ -581,7 +394,6 @@ export function ExplorePage({
           station={details}
           connector={details.selectedConnector}
           onClose={() => setDetails(null)}
-          onMonitor={() => void monitor(details)}
           onShowRoute={() => void loadRoute(details)}
           routeVisible={routeStationId === details.id && route !== null}
           routeLoading={routeStationId === details.id && routeLoading}

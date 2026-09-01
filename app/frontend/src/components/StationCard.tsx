@@ -12,7 +12,6 @@ interface Props {
   compared: boolean
   onCompare: (id: string) => void
   onDetails: (station: RankedStation) => void
-  onMonitor: (station: RankedStation) => void
   onHover: (id: string) => void
 }
 
@@ -35,7 +34,6 @@ export const StationCard = memo(function StationCard({
   compared,
   onCompare,
   onDetails,
-  onMonitor,
   onHover,
 }: Props) {
   const selectedConnector =
@@ -146,9 +144,6 @@ export const StationCard = memo(function StationCard({
           onClick={() => onDetails(station)}
         >
           Details
-        </Button>
-        <Button variant="light" size="xs" onClick={() => onMonitor(station)}>
-          Monitor
         </Button>
       </div>
     </Card>

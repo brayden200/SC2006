@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react'
 import { ActionIcon, NavLink, Notification } from '@mantine/core'
-import { Clock3, Compass, Menu, Sparkles, X, Zap } from 'lucide-react'
+import { Compass, Menu, Sparkles, X, Zap } from 'lucide-react'
 import type { Page } from './types'
 import { ExplorePage } from './pages/ExplorePage'
-import { MonitoringPage } from './pages/MonitoringPage'
 import { api } from './api'
 import type { IntegrationProviderStatus } from './types'
 
-const nav = [
-  { id: 'explore' as Page, label: 'Find a charger', icon: Compass },
-  { id: 'monitoring' as Page, label: 'Monitoring', icon: Clock3 },
-]
+const nav = [{ id: 'explore' as Page, label: 'Find a charger', icon: Compass }]
 
 export default function App() {
   const [page, setPage] = useState<Page>('explore')
@@ -85,7 +81,6 @@ export default function App() {
               key={id}
               label={label}
               leftSection={<Icon size={19} />}
-              rightSection={id === 'monitoring' ? <span className="nav-dot" /> : undefined}
             />
           ))}
         </nav>
@@ -95,7 +90,9 @@ export default function App() {
           </span>
           <div>
             <b>Smarter than nearest</b>
-            <p>Every recommendation explains availability, travel, speed and visit cost.</p>
+            <p>
+              Every recommendation weighs availability, speed and savings, then uses distance to break ties.
+            </p>
           </div>
         </div>
         <div className="sidebar-footer">
@@ -127,8 +124,7 @@ export default function App() {
             <span /> {providerLabel}
           </div>
         </header>
-        {page === 'explore' && <ExplorePage navigate={navigate} notify={setToast} />}
-        {page === 'monitoring' && <MonitoringPage notify={setToast} />}
+        {page === 'explore' && <ExplorePage notify={setToast} />}
       </main>
 
       {toast && (

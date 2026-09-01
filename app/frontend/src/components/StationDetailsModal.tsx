@@ -12,7 +12,6 @@ export function StationDetailsModal({
   station,
   connector,
   onClose,
-  onMonitor,
   onShowRoute,
   routeVisible = false,
   routeLoading = false,
@@ -21,7 +20,6 @@ export function StationDetailsModal({
   station: RankedStation
   connector: ConnectorType
   onClose: () => void
-  onMonitor: () => void
   onShowRoute: () => void
   routeVisible?: boolean
   routeLoading?: boolean
@@ -164,9 +162,6 @@ export function StationDetailsModal({
           </div>
         </div>
       </div>
-      <Button className="detail-monitor-action" fullWidth onClick={onMonitor}>
-        Monitor this {connector} charger
-      </Button>
     </Modal>
   )
 }

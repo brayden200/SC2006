@@ -6,6 +6,15 @@ import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto'
 
 const ROUTE_CONCURRENCY = 4
 
+type RankingPriority = 'Balanced' | 'Availability' | 'Speed' | 'Savings'
+
+const rankingWeights: Record<RankingPriority, { availability: number; speed: number; savings: number }> = {
+  Balanced: { availability: 40, speed: 30, savings: 30 },
+  Availability: { availability: 60, speed: 25, savings: 15 },
+  Speed: { availability: 25, speed: 60, savings: 15 },
+  Savings: { availability: 25, speed: 15, savings: 60 },
+}
+
 @Injectable()
 export class RecommendationsService {
   constructor(
@@ -21,11 +30,7 @@ export class RecommendationsService {
       longitude: dto.longitude,
       radiusKm: dto.radiusKm ?? 8,
       connector: dto.connector === 'Any' ? undefined : dto.connector,
-      maxPrice: dto.maxPrice,
-      minPowerKw: dto.minPowerKw,
-      availableOnly: dto.availableOnly,
-      includeUnknown: dto.includeUnknown ?? false,
-      operator: dto.operator,
+      includeUnknown: true,
     })
     const routeOrigin =
       dto.routeOriginLatitude !== undefined && dto.routeOriginLongitude !== undefined
@@ -55,7 +60,7 @@ export class RecommendationsService {
     }
     const ranked = search.stations
       .map((station) => this.rankStation(station, dto, routes.get(station.id) ?? null))
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => b.score - a.score || a.distanceKm - b.distanceKm)
 
     return {
       recommended: ranked[0] ?? null,
@@ -86,14 +91,13 @@ export class RecommendationsService {
         { latitude: dto.latitude ?? 1.2903, longitude: dto.longitude ?? 103.8519 },
         station,
       )
-    const availability = connector.available === null ? 35 : (connector.available / connector.total) * 100
+    const availability =
+      connector.status === 'unknown' || connector.available === null
+        ? null
+        : (connector.available / Math.max(connector.total, 1)) * 100
     const powerKw = connector.powerKw > 0 ? connector.powerKw : null
     const pricePerKwh = station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null
     const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60))
-    const travelTime = route
-      ? Math.max(0, 100 - (travelMinutes / 45) * 100)
-      : Math.max(0, 100 - (distanceKm / Math.max(dto.radiusKm ?? 8, 1)) * 100)
-    const chargingSpeed = powerKw === null ? 0 : Math.min(100, (powerKw / 200) * 100)
     const estimatedChargeMinutes =
       powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
     const estimatedCost =
@@ -107,33 +111,22 @@ export class RecommendationsService {
       estimatedCost !== null && parkingEstimate.estimatedParkingCost !== null
         ? Number((estimatedCost + parkingEstimate.estimatedParkingCost).toFixed(2))
         : null
-    const price =
-      estimatedTotalCost === null
+    // Savings is based on the charging cost. Unknown values contribute zero,
+    // which deliberately puts incomplete data below stations with known data.
+    const savings =
+      estimatedCost === null
         ? null
-        : Math.max(
-            0,
-            Math.min(100, 100 - (estimatedTotalCost / Math.max((dto.energyKwh ?? 35) * 1.5, 1)) * 100),
-          )
-    const preference = dto.preferredOperator ? (station.operator === dto.preferredOperator ? 100 : 35) : 70
-
-    const rawWeights = {
-      availability: dto.availabilityWeight ?? 30,
-      travelTime: dto.travelWeight ?? 25,
-      chargingSpeed: dto.speedWeight ?? 20,
-      price: price === null ? 0 : (dto.priceWeight ?? 15),
-      preference: dto.preferenceWeight ?? 10,
-    }
-    const weightTotal = Object.values(rawWeights).reduce((sum, value) => sum + value, 0) || 1
+        : Math.max(0, Math.min(100, 100 - (estimatedCost / Math.max((dto.energyKwh ?? 35) * 1.5, 1)) * 100))
+    const speed = powerKw === null ? null : Math.min(100, (powerKw / 200) * 100)
+    const weights = rankingWeights[dto.rankingPriority ?? 'Balanced']
     const score =
-      (availability * rawWeights.availability +
-        travelTime * rawWeights.travelTime +
-        chargingSpeed * rawWeights.chargingSpeed +
-        (price ?? 0) * rawWeights.price +
-        preference * rawWeights.preference) /
-      weightTotal
+      ((availability ?? 0) * weights.availability +
+        (speed ?? 0) * weights.speed +
+        (savings ?? 0) * weights.savings) /
+      100
 
     const reasons: string[] = []
-    if (pricePerKwh === null) reasons.push('Price is unknown and was excluded from scoring')
+    if (pricePerKwh === null) reasons.push('Savings data is unknown and ranked lower')
     if (parkingEstimate.parkingEstimateStatus === 'unavailable')
       reasons.push('Parking cost unavailable and excluded from scoring')
     if (parkingEstimate.parkingEstimateStatus === 'rate_only')
@@ -142,6 +135,8 @@ export class RecommendationsService {
       reasons.push(
         `Estimated S$${parkingEstimate.estimatedParkingCost.toFixed(2)} parking for the charging period`,
       )
+    if (availability === null) reasons.push('Availability is unknown and ranked lower')
+    if (speed === null) reasons.push('Charging speed is unknown and ranked lower')
     if ((connector.available ?? 0) > 0)
       reasons.push(
         `${connector.available} compatible charger${connector.available === 1 ? '' : 's'} available now`,
@@ -150,7 +145,6 @@ export class RecommendationsService {
     if (distanceKm < 3) reasons.push(`Only ${travelMinutes} minutes away`)
     if (pricePerKwh !== null && pricePerKwh <= 0.55)
       reasons.push(`Competitive rate of $${pricePerKwh.toFixed(2)}/kWh`)
-    if (dto.preferredOperator === station.operator) reasons.push('Matches your preferred operator')
     if (dto.connector === 'Any') reasons.unshift(`${connector.type} selected as the best connector`)
 
     return {
@@ -254,10 +248,7 @@ export class RecommendationsService {
   private selectConnector(
     station: Station,
     preference: ConnectorPreference,
-    filters?: Pick<
-      RecommendationDto,
-      'availableOnly' | 'includeUnknown' | 'minPowerKw' | 'availabilityWeight' | 'speedWeight'
-    >,
+    filters?: Pick<RecommendationDto, 'availableOnly' | 'includeUnknown' | 'minPowerKw' | 'rankingPriority'>,
   ) {
     if (preference !== 'Any') return station.connectors.find((connector) => connector.type === preference)
 
@@ -268,14 +259,15 @@ export class RecommendationsService {
         (filters?.minPowerKw === undefined || connector.powerKw >= filters.minPowerKw),
     )
     const candidates = eligible.length ? eligible : station.connectors
-    const availabilityWeight = filters?.availabilityWeight ?? 30
-    const speedWeight = filters?.speedWeight ?? 20
+    const weights = rankingWeights[filters?.rankingPriority ?? 'Balanced']
     return [...candidates].sort((a, b) => {
       const score = (connector: (typeof candidates)[number]) => {
         const availability =
-          connector.available === null ? 35 : (connector.available / Math.max(connector.total, 1)) * 100
-        const speed = Math.min(100, (connector.powerKw / 200) * 100)
-        return availability * availabilityWeight + speed * speedWeight
+          connector.status === 'unknown' || connector.available === null
+            ? 0
+            : (connector.available / Math.max(connector.total, 1)) * 100
+        const speed = connector.powerKw > 0 ? Math.min(100, (connector.powerKw / 200) * 100) : 0
+        return availability * weights.availability + speed * weights.speed
       }
       return score(b) - score(a)
     })[0]

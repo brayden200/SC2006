@@ -188,7 +188,7 @@ describe('RecommendationsService', () => {
       },
     )
     expect(ranked.estimatedCost).toBeNull()
-    expect(ranked.reasons).toContain('Price is unknown and was excluded from scoring')
+    expect(ranked.reasons).toContain('Savings data is unknown and ranked lower')
   })
 
   it('treats a zero-dollar station price as unknown during ranking', () => {
@@ -202,5 +202,56 @@ describe('RecommendationsService', () => {
     )
     expect(ranked.pricePerKwh).toBeNull()
     expect(ranked.estimatedCost).toBeNull()
+  })
+
+  it('prioritises known savings when savings is selected', () => {
+    const knownSavings = service.rankStation(
+      { ...stationsFixture[0], pricePerKwh: 0.5, distanceKm: 1 },
+      { latitude: 1.3048, longitude: 103.8318, connector: 'CCS2', rankingPriority: 'Savings' },
+    )
+    const unknownSavings = service.rankStation(
+      { ...stationsFixture[0], pricePerKwh: null, distanceKm: 1 },
+      { latitude: 1.3048, longitude: 103.8318, connector: 'CCS2', rankingPriority: 'Savings' },
+    )
+
+    expect(knownSavings.score).toBeGreaterThan(unknownSavings.score)
+    expect(unknownSavings.reasons).toContain('Savings data is unknown and ranked lower')
+  })
+
+  it('treats unknown availability as lower priority instead of inventing a value', () => {
+    const knownAvailability = service.rankStation(
+      { ...stationsFixture[0], distanceKm: 1 },
+      { latitude: 1.3048, longitude: 103.8318, connector: 'CCS2', rankingPriority: 'Availability' },
+    )
+    const unknownAvailability = service.rankStation(
+      {
+        ...stationsFixture[0],
+        connectors: [{ ...stationsFixture[0].connectors[0], available: null, status: 'unknown' }],
+        distanceKm: 1,
+      },
+      { latitude: 1.3048, longitude: 103.8318, connector: 'CCS2', rankingPriority: 'Availability' },
+    )
+
+    expect(knownAvailability.score).toBeGreaterThan(unknownAvailability.score)
+    expect(unknownAvailability.reasons).toContain('Availability is unknown and ranked lower')
+  })
+
+  it('breaks equal score ties by distance', async () => {
+    const near = { ...stationsFixture[0], id: 'near', latitude: 1.3048, longitude: 103.8318 }
+    const far = { ...stationsFixture[0], id: 'far', latitude: 1.3148, longitude: 103.8418 }
+    ;(lta.getAllStations as jest.Mock).mockResolvedValueOnce([near, far])
+    drivingRoute.mockRejectedValue(new Error('Routing unavailable'))
+
+    const result = await service.recommend({
+      latitude: 1.3048,
+      longitude: 103.8318,
+      connector: 'Any',
+      rankingPriority: 'Balanced',
+      radiusKm: 30,
+    })
+
+    expect(result.ranked.map((station) => station.id)).toEqual(['near', 'far'])
+    expect(result.ranked[0].score).toBe(result.ranked[1].score)
+    expect(result.ranked[0].distanceKm).toBeLessThan(result.ranked[1].distanceKm)
   })
 })

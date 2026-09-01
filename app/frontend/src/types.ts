@@ -1,6 +1,7 @@
 export type ConnectorType = 'CCS2' | 'Type 2' | 'CHAdeMO'
 export type ConnectorPreference = 'Any' | ConnectorType
-export type Page = 'explore' | 'monitoring'
+export type RankingPriority = 'Balanced' | 'Availability' | 'Speed' | 'Savings'
+export type Page = 'explore'
 
 export interface ParkingInfo {
   carParkId: string
