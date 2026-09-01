@@ -10,9 +10,10 @@ export class RecommendationDto {
   @IsOptional() @IsBoolean() routeFromCurrentLocation?: boolean
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-90) @Max(90) routeOriginLatitude?: number
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-180) @Max(180) routeOriginLongitude?: number
-  @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO']) connector!: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO'
+  @IsOptional()
+  @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO'])
+  connector: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO' = 'Any'
   @IsOptional() @Type(() => Number) @Min(1) @Max(50) radiusKm?: number = 8
-  @IsOptional() @Type(() => Number) @Min(1) @Max(150) energyKwh?: number = 35
   @IsOptional() @Type(() => Number) @Min(0) maxPrice?: number
   @IsOptional() @Type(() => Number) @Min(0) minPowerKw?: number
   @IsOptional() @IsBoolean() availableOnly?: boolean

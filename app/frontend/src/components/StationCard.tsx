@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Badge, Button, Card } from '@mantine/core'
 import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Sparkles } from 'lucide-react'
-import { formatPrice, timeAgo } from '../lib'
+import { timeAgo } from '../lib'
 import type { ConnectorPreference, RankedStation } from '../types'
 
 interface Props {
@@ -78,11 +78,7 @@ export const StationCard = memo(function StationCard({
         <div>
           <Gauge size={17} />
           <b>{plug.powerKw > 0 ? `${plug.powerKw} kW` : 'Unknown'}</b>
-          <small>
-            {station.estimatedChargeMinutes === null
-              ? 'Time unknown'
-              : `${station.estimatedChargeMinutes} min est.`}
-          </small>
+          <small>Charging power</small>
         </div>
         <div>
           <Clock3 size={17} />
@@ -92,22 +88,16 @@ export const StationCard = memo(function StationCard({
         <div>
           <BatteryCharging size={17} />
           <b>
-            {station.estimatedTotalCost !== null
-              ? `$${station.estimatedTotalCost.toFixed(2)} total`
-              : station.estimatedCost !== null
-                ? `$${station.estimatedCost.toFixed(2)} charge`
-                : formatPrice(station.pricePerKwh)}
+            {station.estimatedHourlyCost === null
+              ? 'Unknown'
+              : `$${station.estimatedHourlyCost.toFixed(2)}/hr`}
           </b>
           <small>
-            {station.estimatedTotalCost !== null
-              ? 'Total visit estimate'
-              : station.parkingEstimateStatus === 'rate_only'
-                ? 'See parking rate'
-                : station.parkingEstimateStatus === 'unavailable'
-                  ? 'Parking unavailable'
-                  : station.estimatedCost === null
-                    ? 'Cost unknown'
-                    : 'Charging estimate'}
+            {station.hourlyCostIncludesParking
+              ? 'Charging + parking per hour'
+              : station.parking
+                ? 'Charging per hour · parking unknown'
+                : 'Charging per hour'}
           </small>
         </div>
       </div>

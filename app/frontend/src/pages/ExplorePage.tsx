@@ -16,7 +16,6 @@ import type {
 export function ExplorePage({ notify }: { notify: (message: string) => void }) {
   const [locationQuery, setLocationQuery] = useState('')
   const [priority, setPriority] = useState<RankingPriority>('Balanced')
-  const energyKwh = 35
   const [searchResult, setSearchResult] = useState<SearchMetadata | null>(null)
   const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -132,9 +131,7 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
         query: locationQuery || undefined,
         latitude: searchCoords?.latitude,
         longitude: searchCoords?.longitude,
-        connector: 'Any',
         rankingPriority: priority,
-        energyKwh,
       })
       setHasSearched(true)
       setSearchResult(ranked.search)

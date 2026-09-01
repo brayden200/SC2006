@@ -175,8 +175,8 @@ describe('RecommendationsService', () => {
         connector: 'CCS2',
       },
     )
-    expect(ranked.estimatedCost).toBeNull()
-    expect(ranked.reasons).toContain('Savings data is unknown and ranked lower')
+    expect(ranked.estimatedHourlyCost).toBeNull()
+    expect(ranked.reasons).toContain('Charging cost per hour is unknown and ranked lower')
   })
 
   it('treats a zero-dollar station price as unknown during ranking', () => {
@@ -189,7 +189,7 @@ describe('RecommendationsService', () => {
       },
     )
     expect(ranked.pricePerKwh).toBeNull()
-    expect(ranked.estimatedCost).toBeNull()
+    expect(ranked.estimatedHourlyCost).toBeNull()
   })
 
   it('prioritises known savings when savings is selected', () => {
@@ -203,7 +203,7 @@ describe('RecommendationsService', () => {
     )
 
     expect(knownSavings.score).toBeGreaterThan(unknownSavings.score)
-    expect(unknownSavings.reasons).toContain('Savings data is unknown and ranked lower')
+    expect(unknownSavings.reasons).toContain('Charging cost per hour is unknown and ranked lower')
   })
 
   it('treats unknown availability as lower priority instead of inventing a value', () => {

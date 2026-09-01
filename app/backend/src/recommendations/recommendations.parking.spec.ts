@@ -46,7 +46,7 @@ const stationsFixture: Station[] = [
   },
 ]
 
-describe('RecommendationsService parking costs', () => {
+describe('RecommendationsService hourly charging prices', () => {
   const stations = {
     distanceKm: () => 1,
     findById: (id: string) => structuredClone(stationsFixture.find((station) => station.id === id)!),
@@ -58,30 +58,31 @@ describe('RecommendationsService parking costs', () => {
     estimate: jest.fn((station: Station) =>
       station.id === 'a'
         ? { estimatedParkingCost: 2, parkingEstimateStatus: 'calculated' as const }
-        : { estimatedParkingCost: null, parkingEstimateStatus: 'unavailable' as const },
+        : { estimatedParkingCost: null, parkingEstimateStatus: 'rate_only' as const },
     ),
   } as unknown as ParkingService
   const service = new RecommendationsService(stations, oneMap, parkingService)
 
-  it('calculates total visit cost only when charging and parking costs are known', () => {
+  it('calculates the charging price per hour from the published rate and connector power', () => {
     const ranked = service.rankStation(stationsFixture[0], {
       latitude: 1.3,
       longitude: 103.8,
       connector: 'CCS2',
-      evaluationAt: '2026-08-20T08:00:00+08:00',
     })
-    expect(ranked.estimatedCost).toBe(17.5)
-    expect(ranked.estimatedParkingCost).toBe(2)
-    expect(ranked.estimatedTotalCost).toBe(19.5)
-    expect(ranked.parkingEstimateStatus).toBe('calculated')
+    expect(ranked.estimatedHourlyCost).toBe(52)
+    expect(ranked.hourlyCostIncludesParking).toBe(true)
   })
 
-  it('excludes unknown parking from the total visit estimate', () => {
-    const ranked = service.rankStation(stationsFixture[1], {
-      latitude: 1.3,
-      longitude: 103.8,
-      connector: 'CCS2',
-    })
-    expect(ranked.estimatedTotalCost).toBeNull()
+  it('leaves the hourly price unknown when the charging price is unavailable', () => {
+    const ranked = service.rankStation(
+      { ...stationsFixture[1], pricePerKwh: null },
+      {
+        latitude: 1.3,
+        longitude: 103.8,
+        connector: 'CCS2',
+      },
+    )
+    expect(ranked.estimatedHourlyCost).toBeNull()
+    expect(ranked.hourlyCostIncludesParking).toBe(false)
   })
 })

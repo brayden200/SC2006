@@ -52,10 +52,7 @@ export interface RankedStation extends Station {
   distanceKm: number
   travelMinutes: number | null
   travelSource: 'OneMap' | 'Straight-line estimate'
-  estimatedCost: number | null
-  estimatedChargeMinutes: number | null
-  estimatedParkingCost: number | null
-  estimatedTotalCost: number | null
-  parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
+  estimatedHourlyCost: number | null
+  hourlyCostIncludesParking: boolean
   reasons: string[]
 }

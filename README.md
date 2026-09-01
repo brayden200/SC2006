@@ -1,6 +1,6 @@
 # ChargeWise SG
 
-ChargeWise helps an EV driver answer: “Which nearby charger is currently available, compatible, and suitable after considering travel, charging speed, charging price, and parking cost?”
+ChargeWise helps an EV driver answer: “Which nearby charger is currently available, compatible, and suitable after considering travel, charging speed, charging price per hour, and parking rates?”
 
 It is a TypeScript monorepo with a NestJS API and a responsive React/Vite client. LTA DataMall supplies live charging points and availability; OneMap supplies Singapore geocoding and driving routes.
 
@@ -30,13 +30,11 @@ URA parking data is optional. To enable it, configure `URA_ACCESS_KEY`; `URA_TOK
 
 ## Implemented use cases
 
-| Use case                             | Implementation                                                                                                                                                                                                              |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UC-01 Find compatible stations       | Address/current-location search, LTA compatibility and availability, radius/power/charging-price/operator filters, map/list views, cached-data labeling, and official parking enrichment where a conservative match exists. |
-| UC-02 Recommend best charger         | Existing weighted ranking with OneMap travel, four priority presets, connector selection, explanations, charging estimates, parking estimates, and total visit cost when both costs are known.                              |
-| UC-03 Compare options                | Compare 2–4 stations with known-value highlights for charging, parking, total visit cost, travel, availability, speed, and operator. Unknown parking never wins a cheapest-total comparison.                                |
-| UC-04 Monitor charger                | 90-minute monitors, backend checks every 30 seconds, page refresh every 15 seconds, status/events, expiry/stop controls, and manual refresh.                                                                                |
-| UC-05 Find and accept an alternative | Re-ranks available compatible chargers from the current location, shows detour estimates, and switches the existing monitor.                                                                                                |
+| Use case                       | Implementation                                                                                                                                                                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UC-01 Find compatible stations | Address/current-location search, LTA compatibility and availability, radius/power/charging-price/operator filters, map/list views, cached-data labeling, and official parking enrichment where a conservative match exists. |
+| UC-02 Sort charging options    | Existing weighted ranking with OneMap travel, four priority presets, connector selection, explanations, hourly charging prices, and published parking rates.                                                   |
+| UC-03 Route to a station       | OneMap driving routes from the driver's current location, with route distance, travel time, map line, and clearly labelled fallback estimates.                                                                              |
 
 There are no accounts, authentication, charging logs, charging history, payments, reservations, cloud sync, or push notifications.
 
@@ -47,16 +45,14 @@ There are no accounts, authentication, charging logs, charging history, payments
 - The application does not use the old 2018 LTA “Carpark Rates” dataset, scrape private malls/developments, or invent private-carpark rates.
 - A charger is associated only when identifier/address/name evidence and conservative proximity support the match. A questionable match returns `parking: null`.
 - Published rate text is shown when available. A numeric parking estimate is produced only for supported structured weekday, Saturday, Sunday/public-holiday, time-band, per-unit, or per-entry rules. Ambiguous text remains `rate_only`.
-- `estimatedTotalCost` is `estimatedCost + estimatedParkingCost` only when both components are known. `maxPrice` remains a maximum charging rate per kWh; it is not a total-visit-cost filter.
+- Hourly cost is derived from the published charging price per kWh, selected connector power, and one hour of parking when an official tariff is available. If parking is unavailable, the displayed rate is charging-only; no total visit cost is calculated.
 - Unknown parking is never treated as zero or free. Private-carpark rates remain unavailable.
 
 ## Runtime state and caching
 
-Only monitoring state and event history are persisted. By default it is stored at `runtime-data/monitors.json`; set `CHARGEWISE_DATA_DIR` to choose another local directory. Writes use a complete temporary file followed by replacement, and malformed records are ignored safely. Expired active monitors are marked expired when loaded.
+No user state is persisted. LTA, OneMap, URA, and HDB provider caches are transient backend memory caches. The app does not persist charger snapshots, routes, searches, sessions, or user history.
 
-Monitoring runs only while the local ChargeWise backend is running. Closing or stopping the backend stops the 30-second checks; the app does not promise background monitoring or notifications after shutdown.
-
-LTA, OneMap, URA, and HDB provider caches are transient backend memory caches. The app does not persist charger snapshots, routes, searches, sessions, or user history. `/api/integrations/status` reports provider configuration, health, last success, and last error without exposing secrets.
+`/api/integrations/status` reports provider configuration, health, last success, and last error without exposing secrets.
 
 ## Project structure
 
@@ -65,11 +61,10 @@ app/
   backend/
     src/integrations/   LTA, OneMap, URA, HDB, matching, tariffs, and caches
     src/stations/       Live station refresh and filtering
-    src/recommendations Ranking and comparison
-    src/monitoring/     File-backed watchlist and alternatives
+    src/recommendations Weighted station sorting
   frontend/
-    src/components/     Map, station cards, details, and comparison
-    src/pages/          Explore and monitoring flows
+    src/components/     Map, station cards, details, and routing
+    src/pages/          Search and sorting flows
 docs/                   Use-case diagram
 ```
 
