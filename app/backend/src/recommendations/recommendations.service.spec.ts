@@ -166,18 +166,6 @@ describe('RecommendationsService', () => {
     drivingRoute.mockRejectedValue(new Error('Routing unavailable'))
   })
 
-  it('compares stations using each station’s selected connector in Any mode', async () => {
-    const result = await service.compare({
-      stationIds: stationsFixture.map((station) => station.id),
-      connector: 'Any',
-      energyKwh: 35,
-      latitude: 1.3048,
-      longitude: 103.8318,
-    })
-    expect(result.connector).toBe('Any')
-    expect(result.options.map((option) => option.connector).sort()).toEqual(['CCS2', 'CHAdeMO'])
-  })
-
   it('redistributes the missing price weight instead of inventing a price', () => {
     const ranked = service.rankStation(
       { ...stationsFixture[0], distanceKm: 1 },

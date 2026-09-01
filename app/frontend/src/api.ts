@@ -1,13 +1,4 @@
-import type {
-  ConnectorPreference,
-  ConnectorType,
-  DrivingRoute,
-  IntegrationProviderStatus,
-  Monitor,
-  RankedStation,
-  RecommendationResponse,
-  Station,
-} from './types'
+import type { DrivingRoute, IntegrationProviderStatus, RecommendationResponse } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -50,76 +41,8 @@ export const api = {
       body: JSON.stringify(body),
     })
   },
-  compare(body: {
-    stationIds: string[]
-    connector: ConnectorPreference
-    energyKwh: number
-    latitude: number
-    longitude: number
-  }) {
-    return request<CompareResponse>('/compare', { method: 'POST', body: JSON.stringify(body) })
-  },
-  getMonitors() {
-    return request<{ monitors: Monitor[] }>('/monitoring')
-  },
-  createMonitor(stationId: string, connector: ConnectorType) {
-    return request<Monitor>('/monitoring', {
-      method: 'POST',
-      body: JSON.stringify({ stationId, connector, durationMinutes: 90 }),
-    })
-  },
-  checkMonitor(id: string) {
-    return request<Monitor>(`/monitoring/${id}/check`, { method: 'POST' })
-  },
-  stopMonitor(id: string) {
-    return request<Monitor>(`/monitoring/${id}`, { method: 'DELETE' })
-  },
-  getAlternatives(id: string, latitude: number, longitude: number) {
-    return request<AlternativesResponse>(
-      `/monitoring/${id}/alternatives?latitude=${latitude}&longitude=${longitude}&radiusKm=15`,
-    )
-  },
-  acceptAlternative(id: string, stationId: string) {
-    return request<Monitor>(`/monitoring/${id}/accept-alternative`, {
-      method: 'POST',
-      body: JSON.stringify({ stationId }),
-    })
-  },
-}
-
-export interface CompareOption {
-  id: string
-  name: string
-  operator: string
-  connector: ConnectorType | null
-  availability: number | null
-  powerKw: number | null
-  estimatedChargeMinutes: number | null
-  pricePerKwh: number | null
-  estimatedCost: number | null
-  parkingRateText: string | null
-  estimatedParkingCost: number | null
-  estimatedTotalCost: number | null
-  parkingEstimateStatus: 'calculated' | 'rate_only' | 'unavailable'
-  travelMinutes: number
-  travelSource: 'OneMap' | 'Straight-line estimate'
 }
 interface StationLocation {
   latitude: number
   longitude: number
-}
-export interface CompareResponse {
-  connector: ConnectorPreference
-  energyKwh: number
-  options: CompareOption[]
-  highlights: Record<string, { best: string[]; weakest: string[] }>
-}
-export interface AlternativesResponse {
-  currentStation: Station
-  recommended: RankedStationWithDetour | null
-  alternatives: RankedStationWithDetour[]
-  message: string
-}
-interface RankedStationWithDetour extends RankedStation {
-  additionalTravelMinutes: number
 }

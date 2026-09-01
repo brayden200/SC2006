@@ -83,7 +83,6 @@ export interface IntegrationProviderStatus {
 
 export interface RecommendationResponse {
   recommended: RankedStation | null
-  alternatives: RankedStation[]
   ranked: RankedStation[]
   search: SearchMetadata
 }
@@ -95,24 +94,4 @@ export interface DrivingRoute {
   travelMinutes: number
   coordinates: RouteCoordinate[]
   source: 'OneMap'
-}
-
-export interface MonitorEvent {
-  id: string
-  type: string
-  message: string
-  timestamp: string
-}
-
-export interface Monitor {
-  id: string
-  stationId: string
-  connector: ConnectorType
-  createdAt: string
-  expiresAt: string
-  lastCheckedAt: string
-  lastKnownAvailability: number | null
-  status: 'active' | 'expired' | 'stopped'
-  events: MonitorEvent[]
-  station: Station
 }

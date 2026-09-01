@@ -90,9 +90,7 @@ export default function App() {
           </span>
           <div>
             <b>Smarter than nearest</b>
-            <p>
-              Every recommendation weighs availability, speed and savings, then uses distance to break ties.
-            </p>
+            <p>Every result weighs availability, speed and savings, then uses distance to break ties.</p>
           </div>
         </div>
         <div className="sidebar-footer">

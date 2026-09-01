@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Optional } from '@nestjs/common'
 import { ConnectorPreference, RankedStation, Station } from '../common/types'
 import { OneMapService, ParkingService, RouteResult } from '../integrations'
 import { StationsService } from '../stations/stations.service'
-import { CompareStationsDto, RecommendationDto } from './dto/recommendation.dto'
+import { RecommendationDto } from './dto/recommendation.dto'
 
 const ROUTE_CONCURRENCY = 4
 
@@ -64,7 +64,6 @@ export class RecommendationsService {
 
     return {
       recommended: ranked[0] ?? null,
-      alternatives: ranked.slice(1, 3),
       ranked,
       search: {
         totalMatches: search.totalMatches,
@@ -162,87 +161,6 @@ export class RecommendationsService {
       parkingEstimateStatus: parkingEstimate.parkingEstimateStatus,
       reasons: reasons.slice(0, 3),
     }
-  }
-
-  async compare(dto: CompareStationsDto) {
-    if (dto.stationIds.length < 2 || dto.stationIds.length > 4) {
-      throw new BadRequestException('Choose between two and four stations to compare')
-    }
-    const stations = dto.stationIds.map((id) => this.stationsService.findById(id))
-    const origin = { latitude: dto.latitude ?? 1.3048, longitude: dto.longitude ?? 103.8318 }
-    const options = await Promise.all(
-      stations.map(async (station) => {
-        const connector = this.selectConnector(station, dto.connector)
-        const powerKw = connector && connector.powerKw > 0 ? connector.powerKw : null
-        const pricePerKwh =
-          station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null
-        let route: RouteResult | null = null
-        try {
-          route = await this.oneMap.drivingRoute(origin, station)
-        } catch {
-          route = null
-        }
-        const distanceKm = route?.distanceKm ?? this.stationsService.distanceKm(origin, station)
-        const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60))
-        const estimatedChargeMinutes =
-          powerKw === null ? null : Math.max(10, Math.round(((dto.energyKwh ?? 35) / powerKw) * 60 * 1.12))
-        const estimatedCost =
-          pricePerKwh === null ? null : Number((pricePerKwh * (dto.energyKwh ?? 35)).toFixed(2))
-        const arrivalTime = addMinutes(dto.evaluationAt ?? new Date().toISOString(), travelMinutes)
-        const parkingEstimate = this.parking?.estimate(station, arrivalTime, estimatedChargeMinutes) ?? {
-          estimatedParkingCost: null,
-          parkingEstimateStatus: station.parking ? ('rate_only' as const) : ('unavailable' as const),
-        }
-        const estimatedTotalCost =
-          estimatedCost !== null && parkingEstimate.estimatedParkingCost !== null
-            ? Number((estimatedCost + parkingEstimate.estimatedParkingCost).toFixed(2))
-            : null
-        return {
-          id: station.id,
-          name: station.name,
-          operator: station.operator,
-          connector: connector?.type ?? null,
-          availability: connector?.available ?? null,
-          powerKw,
-          estimatedChargeMinutes,
-          pricePerKwh,
-          estimatedCost,
-          parkingRateText: station.parking?.publishedRateText ?? null,
-          estimatedParkingCost: parkingEstimate.estimatedParkingCost,
-          estimatedTotalCost,
-          parkingEstimateStatus: parkingEstimate.parkingEstimateStatus,
-          travelMinutes,
-          travelSource: route ? 'OneMap' : 'Straight-line estimate',
-        }
-      }),
-    )
-
-    const known = (key: keyof (typeof options)[number]) =>
-      options.filter((item) => typeof item[key] === 'number')
-    const highlights: Record<string, { best: string[]; weakest: string[] }> = {}
-    const directions: Array<{ key: keyof (typeof options)[number]; direction: 'max' | 'min' }> = [
-      { key: 'availability', direction: 'max' },
-      { key: 'powerKw', direction: 'max' },
-      { key: 'estimatedChargeMinutes', direction: 'min' },
-      { key: 'pricePerKwh', direction: 'min' },
-      { key: 'estimatedCost', direction: 'min' },
-      { key: 'estimatedParkingCost', direction: 'min' },
-      { key: 'estimatedTotalCost', direction: 'min' },
-      { key: 'travelMinutes', direction: 'min' },
-    ]
-    directions.forEach(({ key, direction }) => {
-      const values = known(key)
-      if (!values.length) return
-      const nums = values.map((item) => item[key] as number)
-      const bestValue = direction === 'max' ? Math.max(...nums) : Math.min(...nums)
-      const weakestValue = direction === 'max' ? Math.min(...nums) : Math.max(...nums)
-      highlights[key as string] = {
-        best: values.filter((item) => item[key] === bestValue).map((item) => item.id),
-        weakest: values.filter((item) => item[key] === weakestValue).map((item) => item.id),
-      }
-    })
-
-    return { connector: dto.connector, energyKwh: dto.energyKwh ?? 35, options, highlights }
   }
 
   private selectConnector(

@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from 'react'
 import { ActionIcon, Alert, Button, Loader, Paper, Select, Stack, TextInput } from '@mantine/core'
 import { AlertTriangle, CircleAlert, LocateFixed, Search } from 'lucide-react'
 import { api } from '../api'
-import { ComparisonModal } from '../components/ComparisonModal'
 import { MapPanel } from '../components/MapPanel'
 import { StationCard } from '../components/StationCard'
 import { StationDetailsModal } from '../components/StationDetailsModal'
@@ -23,9 +22,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState('')
-  const [compareIds, setCompareIds] = useState<string[]>([])
-  const compareIdsRef = useRef(compareIds)
-  const [showComparison, setShowComparison] = useState(false)
   const [details, setDetails] = useState<RankedStation | null>(null)
   const [mapSelectedId, setMapSelectedId] = useState<string>()
   const [route, setRoute] = useState<DrivingRoute | null>(null)
@@ -94,9 +90,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
                 current.recommended?.id === station.id
                   ? { ...current.recommended, ...routeMetrics }
                   : current.recommended,
-              alternatives: current.alternatives.map((item) =>
-                item.id === station.id ? { ...item, ...routeMetrics } : item,
-              ),
             }
           })
           setDetails((current) => (current?.id === station.id ? { ...current, ...routeMetrics } : current))
@@ -129,8 +122,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
     }
     setLoading(true)
     setError('')
-    compareIdsRef.current = []
-    setCompareIds([])
     routeRequestId.current += 1
     setRoute(null)
     setRouteStationId(undefined)
@@ -172,31 +163,9 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
   }
 
   const ranked = recommendation?.ranked ?? []
-  const compared = ranked.filter((item) => compareIds.includes(item.id))
   const routeStation = ranked.find((item) => item.id === routeStationId) ?? null
   const routeOrigin = currentLocation ?? undefined
-  const toggleCompare = useCallback(
-    (id: string) => {
-      const current = compareIdsRef.current
-      if (current.includes(id)) {
-        const next = current.filter((item) => item !== id)
-        compareIdsRef.current = next
-        setCompareIds(next)
-      } else if (current.length < 4) {
-        const next = [...current, id]
-        compareIdsRef.current = next
-        setCompareIds(next)
-      } else {
-        notify('You can compare up to four stations at once')
-      }
-    },
-    [notify],
-  )
   const selectMapStation = useCallback((id: string) => setMapSelectedId(id), [])
-  const clearCompare = useCallback(() => {
-    compareIdsRef.current = []
-    setCompareIds([])
-  }, [])
   return (
     <div className="page explore-page">
       <section className="page-heading">
@@ -311,8 +280,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
                   connector="Any"
                   rank={index + 1}
                   best={index === 0}
-                  compared={compareIds.includes(station.id)}
-                  onCompare={toggleCompare}
                   onDetails={selectStation}
                   onHover={selectMapStation}
                 />
@@ -352,43 +319,6 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
         </div>
       )}
 
-      {compareIds.length > 0 && (
-        <Paper className="compare-tray" radius="lg" withBorder>
-          <div>
-            <span className="compare-stack">
-              {compared.map((item, index) => (
-                <i key={item.id} style={{ zIndex: index }}>
-                  {item.name.charAt(0)}
-                </i>
-              ))}
-            </span>
-            <div>
-              <b>{compareIds.length} selected</b>
-              <small>Choose 2–4 stations</small>
-            </div>
-          </div>
-          <Button variant="subtle" size="compact-sm" onClick={clearCompare}>
-            Clear
-          </Button>
-          <Button disabled={compareIds.length < 2} onClick={() => setShowComparison(true)}>
-            Compare side by side
-          </Button>
-        </Paper>
-      )}
-      {showComparison && (
-        <ComparisonModal
-          stations={compared}
-          connector="Any"
-          energyKwh={energyKwh}
-          location={searchResult!.location}
-          onClose={() => setShowComparison(false)}
-          onChoose={(station) => {
-            setShowComparison(false)
-            selectStation(station)
-            notify(`${station.name} selected`)
-          }}
-        />
-      )}
       {details && (
         <StationDetailsModal
           station={details}

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 
 export class RecommendationDto {
   @IsOptional() @IsString() query?: string
@@ -19,14 +19,5 @@ export class RecommendationDto {
   @IsOptional() @IsBoolean() includeUnknown?: boolean
   @IsOptional() @IsString() operator?: string
   @IsOptional() @IsString() preferredOperator?: string
-  @IsOptional() @IsString() evaluationAt?: string
-}
-
-export class CompareStationsDto {
-  @IsArray() @IsString({ each: true }) stationIds!: string[]
-  @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO']) connector!: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO'
-  @IsOptional() @Type(() => Number) @Min(1) @Max(150) energyKwh?: number = 35
-  @IsOptional() @Type(() => Number) @IsNumber() latitude?: number = 1.3048
-  @IsOptional() @Type(() => Number) @IsNumber() longitude?: number = 103.8318
   @IsOptional() @IsString() evaluationAt?: string
 }

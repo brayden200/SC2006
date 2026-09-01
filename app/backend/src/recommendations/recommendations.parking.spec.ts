@@ -76,16 +76,12 @@ describe('RecommendationsService parking costs', () => {
     expect(ranked.parkingEstimateStatus).toBe('calculated')
   })
 
-  it('excludes unknown parking from scoring and comparison total highlights', async () => {
+  it('excludes unknown parking from the total visit estimate', () => {
     const ranked = service.rankStation(stationsFixture[1], {
       latitude: 1.3,
       longitude: 103.8,
       connector: 'CCS2',
     })
     expect(ranked.estimatedTotalCost).toBeNull()
-    const comparison = await service.compare({ stationIds: ['a', 'b'], connector: 'CCS2', energyKwh: 35 })
-    expect(comparison.options.find((item) => item.id === 'b')?.estimatedTotalCost).toBeNull()
-    expect(comparison.highlights.estimatedTotalCost.best).toEqual(['a'])
-    expect(comparison.highlights.estimatedTotalCost.weakest).toEqual(['a'])
   })
 })

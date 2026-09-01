@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Badge, Button, Card } from '@mantine/core'
-import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Scale, Sparkles } from 'lucide-react'
+import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Sparkles } from 'lucide-react'
 import { formatPrice, timeAgo } from '../lib'
 import type { ConnectorPreference, RankedStation } from '../types'
 
@@ -9,8 +9,6 @@ interface Props {
   connector: ConnectorPreference
   rank: number
   best?: boolean
-  compared: boolean
-  onCompare: (id: string) => void
   onDetails: (station: RankedStation) => void
   onHover: (id: string) => void
 }
@@ -31,8 +29,6 @@ export const StationCard = memo(function StationCard({
   connector,
   rank,
   best,
-  compared,
-  onCompare,
   onDetails,
   onHover,
 }: Props) {
@@ -130,15 +126,7 @@ export const StationCard = memo(function StationCard({
       </div>
       <div className="station-actions">
         <Button
-          variant={compared ? 'light' : 'default'}
-          size="xs"
-          leftSection={<Scale size={16} />}
-          onClick={() => onCompare(station.id)}
-        >
-          {compared ? 'Selected' : 'Compare'}
-        </Button>
-        <Button
-          variant="subtle"
+          variant="default"
           size="xs"
           rightSection={<ChevronRight size={15} />}
           onClick={() => onDetails(station)}
