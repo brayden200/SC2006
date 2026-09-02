@@ -14,6 +14,9 @@ interface OneMapRouteResponse {
   route_summary?: { total_time?: number; total_distance?: number }
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 20_000
+const ADDRESS_SEARCH_TIMEOUT_MS = 60_000
+
 @Injectable()
 export class OneMapService {
   private readonly baseUrl: string
@@ -65,7 +68,10 @@ export class OneMapService {
     url.searchParams.set('getAddrDetails', 'Y')
     url.searchParams.set('pageNum', '1')
     try {
-      const payload = await this.authorizedJson<OneMapSearchResponse>(url.toString())
+      const payload = await this.authorizedJson<OneMapSearchResponse>(
+        url.toString(),
+        ADDRESS_SEARCH_TIMEOUT_MS,
+      )
       if (payload.error) throw new Error(`OneMap search error: ${payload.error}`)
       const first = payload.results?.[0]
       if (!first) return null
@@ -113,28 +119,28 @@ export class OneMapService {
     }
   }
 
-  private async authorizedJson<T>(url: string): Promise<T> {
-    let token = await this.token()
+  private async authorizedJson<T>(url: string, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<T> {
+    let token = await this.token(false, timeoutMs)
     let response = await fetch(url, {
       headers: { Authorization: token, Accept: 'application/json' },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
     if (response.status === 401 && this.hasCredentials()) {
       this.generatedToken = null
-      token = await this.token(true)
+      token = await this.token(true, timeoutMs)
       response = await fetch(url, {
         headers: { Authorization: token, Accept: 'application/json' },
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(timeoutMs),
       })
     }
     if (!response.ok) throw new Error(`OneMap request failed with HTTP ${response.status}`)
     let payload = (await response.json()) as T
     if (this.isUnauthorizedPayload(payload) && this.hasCredentials()) {
       this.generatedToken = null
-      token = await this.token(true)
+      token = await this.token(true, timeoutMs)
       response = await fetch(url, {
         headers: { Authorization: token, Accept: 'application/json' },
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(timeoutMs),
       })
       if (!response.ok) throw new Error(`OneMap request failed with HTTP ${response.status}`)
       payload = (await response.json()) as T
@@ -158,7 +164,7 @@ export class OneMapService {
     return Boolean(this.config.get<string>('ONEMAP_EMAIL') && this.config.get<string>('ONEMAP_PASSWORD'))
   }
 
-  private async token(forceManaged = false): Promise<string> {
+  private async token(forceManaged = false, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<string> {
     const provided = this.config.get<string>('ONEMAP_TOKEN')
     if (!forceManaged && provided) return provided
     if (this.generatedToken && this.generatedToken.expiresAt > Date.now() + 60_000)
@@ -170,7 +176,7 @@ export class OneMapService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
     if (!response.ok) throw new Error(`OneMap authentication failed with HTTP ${response.status}`)
     const payload = (await response.json()) as { access_token?: string; expiry_timestamp?: string }

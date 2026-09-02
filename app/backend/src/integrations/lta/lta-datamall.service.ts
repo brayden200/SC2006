@@ -4,6 +4,8 @@ import { AvailabilityStatus, Connector, ConnectorType, Station } from '../../com
 
 type JsonRecord = Record<string, unknown>
 
+const LTA_REQUEST_TIMEOUT_MS = 60_000
+
 @Injectable()
 export class LtaDataMallService {
   private readonly baseUrl: string
@@ -208,7 +210,7 @@ export class LtaDataMallService {
   }
 
   private async fetchJson(url: string, headers: Record<string, string> = {}): Promise<unknown> {
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(12_000) })
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(LTA_REQUEST_TIMEOUT_MS) })
     if (!response.ok) throw new Error(`LTA DataMall request failed with HTTP ${response.status}`)
     return response.json() as Promise<unknown>
   }
