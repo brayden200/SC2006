@@ -76,6 +76,36 @@ export interface RecommendationResponse {
   search: SearchMetadata
 }
 
+export type ChatRole = 'user' | 'assistant'
+export type AiChatIntent = 'search' | 'clarification' | 'explanation'
+
+export interface ChatMessage {
+  role: ChatRole
+  content: string
+}
+
+export interface AiRecommendationFilters {
+  query?: string
+  connector: 'Any' | ConnectorType
+  rankingPriority: RankingPriority
+  radiusKm: number
+  energyKwh: number
+  maxPrice?: number
+  minPowerKw?: number
+  availableOnly?: boolean
+  operator?: string
+  evaluationAt?: string
+}
+
+export interface AiChatResponse {
+  reply: string
+  intent: AiChatIntent
+  recommendation: RecommendationResponse | null
+  filters: AiRecommendationFilters
+  needsClarification: boolean
+  clarifyingQuestion?: string
+}
+
 export type RouteCoordinate = [latitude: number, longitude: number]
 
 export interface DrivingRoute {

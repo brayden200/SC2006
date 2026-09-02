@@ -24,6 +24,15 @@ LTA_ACCOUNT_KEY=your-datamall-account-key
 ONEMAP_TOKEN=your-current-onemap-token
 ```
 
+To enable **Ask ChargeWise**, add an AI API key and model. These values are read only by NestJS and must never use the `VITE_` prefix:
+
+```dotenv
+AI_API_KEY=your-api-key
+AI_MODEL=gpt-5-mini
+# Optional OpenAI-compatible API root; defaults to https://api.openai.com/v1
+AI_API_BASE_URL=
+```
+
 OneMap tokens expire after three days. Instead of updating `ONEMAP_TOKEN` manually, set `ONEMAP_EMAIL` and `ONEMAP_PASSWORD` and the backend will obtain and cache a token. Credentials are read only by NestJS and are never returned to React.
 
 URA parking data is optional. To enable it, configure `URA_ACCESS_KEY`; `URA_TOKEN` may be supplied when available, otherwise the backend obtains the daily token. HDB car-park metadata is fetched from data.gov.sg without a credential. See `.env.example` for all backend-only settings.
@@ -35,6 +44,37 @@ URA parking data is optional. To enable it, configure `URA_ACCESS_KEY`; `URA_TOK
 | UC-01 Find compatible stations | Address/current-location search, LTA compatibility and availability, map/list views, cached-data labeling, and official parking enrichment where a conservative match exists. |
 | UC-02 Sort charging options    | Weighted ranking with OneMap travel, four priority presets, automatic connector selection, explanations, hourly charging prices, and published parking rates.                 |
 | UC-03 Route to a station       | OneMap driving routes from the driver's current location, with route distance, travel time, map line, and clearly labelled fallback estimates.                                |
+
+## Ask ChargeWise chatbot
+
+The Explore page includes an optional conversational search panel. The browser sends a message, recent conversation turns, coarse location context when available, and selected station IDs to `POST /api/ai/chat`. The NestJS backend asks the configured model for a strict structured intent and filter object, validates and bounds those filters, and then calls the existing recommendation service.
+
+The model does not receive the AI key in the browser and is not the source of station results. LTA DataMall supplies station and availability data, OneMap supplies location and route data, and the existing deterministic backend applies compatibility, price, availability, parking, and ranking calculations. The model is instructed not to invent live facts, and unknown charging prices or parking costs remain unknown rather than being treated as zero or free.
+
+Chat messages are sent to the configured AI provider to interpret the request. Do not enter sensitive or personal information. ChargeWise does not persist chat history, but the configured AI provider may process requests under its own data and retention policies. The chatbot can explain monitoring, but it cannot create or stop monitors; use only the application's explicit controls for those actions.
+
+If `AI_API_KEY` is missing, the provider fails, or the 15-second request timeout is reached, the chatbot shows an error and the normal search form remains available.
+
+### Chat API contract
+
+```http
+POST /api/ai/chat
+Content-Type: application/json
+```
+
+```json
+{
+  "message": "Find a fast CCS2 charger near Orchard under S$0.60/kWh",
+  "conversation": [{ "role": "user", "content": "I prefer fast charging" }],
+  "context": {
+    "latitude": 1.3,
+    "longitude": 103.83,
+    "selectedStationIds": []
+  }
+}
+```
+
+The response contains `reply`, `intent` (`search`, `clarification`, or `explanation`), validated `filters`, `needsClarification`, and either a deterministic `recommendation` response or `null`.
 
 There are no accounts, authentication, charging logs, charging history, payments, reservations, cloud sync, or push notifications.
 

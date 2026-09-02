@@ -31,6 +31,10 @@ export class RecommendationsService {
       longitude: dto.longitude,
       radiusKm: dto.radiusKm ?? 8,
       connector: connectorPreference === 'Any' ? undefined : connectorPreference,
+      minPowerKw: dto.minPowerKw,
+      maxPrice: dto.maxPrice,
+      availableOnly: dto.availableOnly,
+      operator: dto.operator,
       includeUnknown: true,
     })
     const routeOrigin =
@@ -101,7 +105,7 @@ export class RecommendationsService {
     const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60))
     const chargingHourlyCost =
       pricePerKwh === null || powerKw === null ? null : Number((pricePerKwh * powerKw).toFixed(2))
-    const arrivalTime = addMinutes(new Date().toISOString(), travelMinutes)
+    const arrivalTime = addMinutes(dto.evaluationAt ?? new Date().toISOString(), travelMinutes)
     const parkingEstimate = this.parking?.estimate(station, arrivalTime, 60)
     const parkingHourlyCost = parkingEstimate?.estimatedParkingCost ?? null
     const hourlyCostIncludesParking = chargingHourlyCost !== null && parkingHourlyCost !== null

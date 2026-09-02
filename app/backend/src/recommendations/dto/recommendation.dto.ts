@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
 
 export class RecommendationDto {
   @IsOptional() @IsString() query?: string
@@ -14,4 +14,10 @@ export class RecommendationDto {
   @IsIn(['Any', 'CCS2', 'Type 2', 'CHAdeMO'])
   connector: 'Any' | 'CCS2' | 'Type 2' | 'CHAdeMO' = 'Any'
   @IsOptional() @Type(() => Number) @Min(1) @Max(50) radiusKm?: number = 8
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0.1) @Max(500) energyKwh?: number = 35
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) maxPrice?: number
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(1000) minPowerKw?: number
+  @IsOptional() @IsBoolean() availableOnly?: boolean
+  @IsOptional() @IsString() operator?: string
+  @IsOptional() @IsDateString() evaluationAt?: string
 }
