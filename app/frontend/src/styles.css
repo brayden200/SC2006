@@ -471,6 +471,14 @@ select:focus-visible {
   align-items: center;
   gap: 12px;
 }
+.data-quality-row {
+  margin: 8px 0 0 39px;
+  color: #8a6a36;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .reason-row > div {
   display: flex;
   gap: 12px;

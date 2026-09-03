@@ -89,38 +89,21 @@ export class StationsService {
     let stations = this.stations
       .map((station) => ({ ...structuredClone(station), distanceKm: this.distanceKm(location, station) }))
       .filter((station) => station.distanceKm <= radius)
-    if (dto.connector && dto.connector !== 'Any') {
-      stations = stations.filter((station) =>
-        station.connectors.some((connector) => connector.type === dto.connector),
-      )
-    }
-    if (dto.minPowerKw !== undefined) {
-      stations = stations.filter((station) =>
-        station.connectors.some(
-          (connector) =>
-            (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
-            connector.powerKw >= dto.minPowerKw!,
-        ),
-      )
-    }
-    if (dto.availableOnly) {
-      stations = stations.filter((station) =>
-        station.connectors.some(
-          (connector) =>
-            (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
-            (connector.available ?? 0) > 0 &&
-            connector.status === 'available',
-        ),
-      )
-    }
-    if (!dto.includeUnknown) {
-      stations = stations.filter((station) =>
-        station.connectors.some(
-          (connector) =>
-            (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
-            connector.status !== 'unknown',
-        ),
-      )
+    const connectorMatches = (connector: Station['connectors'][number]) =>
+      (!dto.connector || dto.connector === 'Any' || connector.type === dto.connector) &&
+      (dto.minPowerKw === undefined || connector.powerKw >= dto.minPowerKw) &&
+      (!dto.availableOnly || ((connector.available ?? 0) > 0 && connector.status === 'available')) &&
+      (dto.includeUnknown || connector.status !== 'unknown')
+    // All connector-specific mandatory requirements must hold on the same
+    // connector. This prevents one connector from satisfying the type filter
+    // while another satisfies power or availability.
+    if (
+      (dto.connector && dto.connector !== 'Any') ||
+      dto.minPowerKw !== undefined ||
+      dto.availableOnly ||
+      !dto.includeUnknown
+    ) {
+      stations = stations.filter((station) => station.connectors.some(connectorMatches))
     }
     if (dto.maxPrice !== undefined) {
       stations = stations.filter(

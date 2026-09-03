@@ -1,6 +1,15 @@
 import { memo } from 'react'
 import { Badge, Button, Card } from '@mantine/core'
-import { BatteryCharging, Check, ChevronRight, Clock3, Gauge, MapPin, Sparkles } from 'lucide-react'
+import {
+  BatteryCharging,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  Clock3,
+  Gauge,
+  MapPin,
+  Sparkles,
+} from 'lucide-react'
 import { timeAgo } from '../lib'
 import type { RankedStation } from '../types'
 
@@ -104,6 +113,12 @@ export const StationCard = memo(function StationCard({ station, rank, best, onDe
           {station.operator}
         </Badge>
       </div>
+      {(station.dataQualityNotices ?? []).length > 0 && (
+        <div className="data-quality-row">
+          <CircleAlert size={13} />
+          {(station.dataQualityNotices ?? [])[0]}
+        </div>
+      )}
       <div className="station-actions">
         <Button
           variant="default"

@@ -1,5 +1,26 @@
 export type ConnectorType = 'CCS2' | 'Type 2' | 'CHAdeMO'
 export type RankingPriority = 'Balanced' | 'Availability' | 'Speed' | 'Savings'
+export type RankingFactor = 'distance' | 'availability' | 'speed' | 'savings'
+export type RankingImportance = 0 | 1 | 2 | 4 | 8
+export type RankingWeightSource = 'preset' | 'inferred preferences' | 'explicit percentages'
+
+export interface RankingWeights {
+  distance: number
+  availability: number
+  speed: number
+  savings: number
+}
+
+export interface RankingPreferences {
+  importance?: Partial<Record<RankingFactor, RankingImportance | null>>
+  percentages?: Partial<Record<RankingFactor, number | null>>
+  excluded?: RankingFactor[]
+}
+
+export interface RankingPolicy {
+  weights: RankingWeights
+  source: RankingWeightSource
+}
 
 export interface ParkingInfo {
   carParkId: string
@@ -47,6 +68,10 @@ export interface RankedStation extends Station {
   estimatedHourlyCost: number | null
   hourlyCostIncludesParking: boolean
   reasons: string[]
+  dataQualityNotices: string[]
+  scoreComponents: Record<RankingFactor, number | null>
+  weightedContributions: RankingWeights
+  scoreExact: number
 }
 
 export interface SearchMetadata {
@@ -73,6 +98,7 @@ export interface IntegrationProviderStatus {
 export interface RecommendationResponse {
   recommended: RankedStation | null
   ranked: RankedStation[]
+  ranking: RankingPolicy
   search: SearchMetadata
 }
 
@@ -97,11 +123,21 @@ export interface AiRecommendationFilters {
   evaluationAt?: string
 }
 
+export type RecommendationRequest = AiRecommendationFilters & {
+  latitude?: number
+  longitude?: number
+  routeFromCurrentLocation?: boolean
+  routeOriginLatitude?: number
+  routeOriginLongitude?: number
+  rankingPreferences?: RankingPreferences
+}
+
 export interface AiChatResponse {
   reply: string
   intent: AiChatIntent
   recommendation: RecommendationResponse | null
   filters: AiRecommendationFilters
+  rankingPreferences?: RankingPreferences
   needsClarification: boolean
   clarifyingQuestion?: string
 }

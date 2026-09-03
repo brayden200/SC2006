@@ -6,17 +6,46 @@ import { MapPanel } from '../components/MapPanel'
 import { StationCard } from '../components/StationCard'
 import { StationDetailsModal } from '../components/StationDetailsModal'
 import type {
+  AiRecommendationFilters,
   ChatMessage,
   DrivingRoute,
   RankedStation,
   RecommendationResponse,
+  RankingFactor,
+  RankingPreferences,
   RankingPriority,
+  RankingPolicy,
   SearchMetadata,
 } from '../types'
+
+const rankingFactors: RankingFactor[] = ['distance', 'availability', 'speed', 'savings']
+const rankingLabels: Record<RankingFactor, string> = {
+  distance: 'distance',
+  availability: 'availability',
+  speed: 'charging speed',
+  savings: 'savings',
+}
+
+function rankingExplanation(policy: RankingPolicy, priority: RankingPriority) {
+  const active = rankingFactors
+    .filter((factor) => policy.weights[factor] > 0)
+    .sort((a, b) => policy.weights[b] - policy.weights[a])
+  const parts = active.map((factor) => rankingLabels[factor])
+  if (policy.source === 'preset') return `${priority} priority: ${parts.join(', ')}`
+  const labels = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]
+  return `Custom ranking · Prioritising ${labels || 'your preferences'}`
+}
 
 export function ExplorePage({ notify }: { notify: (message: string) => void }) {
   const [locationQuery, setLocationQuery] = useState('')
   const [priority, setPriority] = useState<RankingPriority>('Balanced')
+  const [customRankingPreferences, setCustomRankingPreferences] = useState<RankingPreferences | null>(null)
+  const [appliedFilters, setAppliedFilters] = useState<AiRecommendationFilters>({
+    connector: 'Any',
+    rankingPriority: 'Balanced',
+    radiusKm: 8,
+    energyKwh: 35,
+  })
   const [searchResult, setSearchResult] = useState<SearchMetadata | null>(null)
   const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -29,6 +58,7 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState('')
   const routeRequestId = useRef(0)
+  const recommendationRequestId = useRef(0)
   const [searchCoords, setSearchCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number
@@ -126,6 +156,7 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
       setError('Enter an address or postal code, or use your current location.')
       return
     }
+    const requestId = ++recommendationRequestId.current
     setLoading(true)
     setError('')
     routeRequestId.current += 1
@@ -135,14 +166,23 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
     setRouteError('')
     try {
       const ranked = await api.recommend({
+        ...appliedFilters,
         query: locationQuery || undefined,
         latitude: searchCoords?.latitude,
         longitude: searchCoords?.longitude,
-        rankingPriority: priority,
+        rankingPriority: customRankingPreferences ? appliedFilters.rankingPriority : priority,
+        rankingPreferences: customRankingPreferences ?? undefined,
       })
+      if (requestId !== recommendationRequestId.current) return
       setHasSearched(true)
       setSearchResult(ranked.search)
       setRecommendation(ranked)
+      setAppliedFilters((current) => ({
+        ...current,
+        query: locationQuery || undefined,
+        rankingPriority: customRankingPreferences ? current.rankingPriority : priority,
+      }))
+      if (ranked.ranking.source === 'preset') setCustomRankingPreferences(null)
       if (ranked.recommended) {
         setMapSelectedId(ranked.recommended.id)
       }
@@ -170,6 +210,7 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
     const message = chatInput.trim()
     if (!message || chatLoading) return
     const conversation = chatMessages.slice(-12)
+    const requestId = ++recommendationRequestId.current
     setChatMessages((current) => [...current, { role: 'user', content: message }])
     setChatInput('')
     setChatError('')
@@ -177,7 +218,18 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
     setChatStatus('Understanding your request…')
     const statusTimer = window.setTimeout(() => setChatStatus('Finding compatible chargers…'), 700)
     try {
-      const coordinates = searchCoords ?? currentLocation ?? undefined
+      let coordinates: { latitude: number; longitude: number; accuracy?: number } | undefined =
+        searchCoords ?? currentLocation ?? undefined
+      if (!coordinates) {
+        try {
+          // Ask for location when the chatbot has no usable location context;
+          // the request can still continue if the browser denies access.
+          coordinates = await requestCurrentLocation()
+        } catch {
+          coordinates = undefined
+        }
+      }
+      const hasChatHistory = conversation.length > 0
       const result = await api.chat({
         message,
         conversation,
@@ -185,9 +237,14 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
           latitude: coordinates?.latitude,
           longitude: coordinates?.longitude,
           selectedStationIds: mapSelectedId ? [mapSelectedId] : [],
+          // A first chatbot search should not inherit unrelated constraints
+          // from a manual search. Follow-ups retain the prior AI-applied state.
+          previousFilters: hasChatHistory ? appliedFilters : undefined,
+          previousRankingPreferences: hasChatHistory ? (customRankingPreferences ?? undefined) : undefined,
         },
       })
       setChatMessages((current) => [...current, { role: 'assistant', content: result.reply }])
+      if (requestId !== recommendationRequestId.current) return
       if (result.recommendation) {
         routeRequestId.current += 1
         setRoute(null)
@@ -196,10 +253,18 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
         setHasSearched(true)
         setRecommendation(result.recommendation)
         setSearchResult(result.recommendation.search)
+        setAppliedFilters(result.filters)
         setPriority(result.filters.rankingPriority)
+        setCustomRankingPreferences(
+          result.recommendation.ranking.source === 'preset' ? null : (result.rankingPreferences ?? null),
+        )
         if (result.filters.query) {
           setLocationQuery(result.filters.query)
           setSearchCoords(null)
+        } else if (coordinates) {
+          // Keep coordinate-based searches refreshable even when the AI left
+          // the query empty because it used the supplied current location.
+          setSearchCoords({ latitude: coordinates.latitude, longitude: coordinates.longitude })
         }
         if (result.recommendation.recommended) {
           setMapSelectedId(result.recommendation.recommended.id)
@@ -233,7 +298,8 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
             Find your best charge, <em>not just the nearest.</em>
           </h1>
           <p>
-            Choose a location and what matters most. Chargers are scored on savings, speed and availability.
+            Choose a location and what matters most. Chargers are scored on distance, savings, speed and
+            availability.
           </p>
         </div>
       </section>
@@ -259,9 +325,19 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
           />
           <Select
             label="Ranking priority"
-            value={priority}
-            onChange={(value) => setPriority((value ?? 'Balanced') as RankingPriority)}
-            data={['Balanced', 'Availability', 'Speed', 'Savings']}
+            value={customRankingPreferences ? 'Custom' : priority}
+            onChange={(value) => {
+              if (!value || value === 'Custom') return
+              const nextPriority = value as RankingPriority
+              setPriority(nextPriority)
+              setCustomRankingPreferences(null)
+              setAppliedFilters((current) => ({ ...current, rankingPriority: nextPriority }))
+            }}
+            data={
+              customRankingPreferences
+                ? ['Custom', 'Balanced', 'Availability', 'Speed', 'Savings']
+                : ['Balanced', 'Availability', 'Speed', 'Savings']
+            }
             allowDeselect={false}
           />
           <Button
@@ -378,7 +454,10 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
         <div className="page-loading">
           <Loader size="md" />
           <h3>Ranking compatible chargers…</h3>
-          <p>Scoring savings, speed and availability. Equal scores are ordered by distance.</p>
+          <p>
+            Scoring distance, availability, speed and savings. Equal scores are ordered by distance, then
+            station ID.
+          </p>
         </div>
       ) : ranked.length > 0 ? (
         <>
@@ -391,7 +470,10 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
                 compatible options
               </h2>
               <p>
-                Near {searchResult?.location.label} · {priority.toLowerCase()} priority
+                Near {searchResult?.location.label} ·{' '}
+                {recommendation
+                  ? rankingExplanation(recommendation.ranking, priority)
+                  : `${priority} priority`}
               </p>
             </div>
             <span className="result-updated">

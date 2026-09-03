@@ -1,9 +1,12 @@
 import type {
   AiChatResponse,
+  AiRecommendationFilters,
   ChatMessage,
   DrivingRoute,
   IntegrationProviderStatus,
+  RecommendationRequest,
   RecommendationResponse,
+  RankingPreferences,
 } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL ?? '/api'
@@ -41,7 +44,7 @@ export const api = {
     })
     return request<DrivingRoute>(`/routes/driving?${query}`)
   },
-  recommend(body: Record<string, unknown>) {
+  recommend(body: RecommendationRequest) {
     return request<RecommendationResponse>('/recommendations', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -54,6 +57,8 @@ export const api = {
       latitude?: number
       longitude?: number
       selectedStationIds: string[]
+      previousFilters?: AiRecommendationFilters
+      previousRankingPreferences?: RankingPreferences
     }
   }) {
     return request<AiChatResponse>('/ai/chat', {

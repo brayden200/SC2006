@@ -1,12 +1,26 @@
 import { Type } from 'class-transformer'
-import { IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator'
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator'
+import type { RankingPreferencesInput } from '../ranking-weights'
+
+export type RankingPriority = 'Balanced' | 'Availability' | 'Speed' | 'Savings'
 
 export class RecommendationDto {
   @IsOptional() @IsString() query?: string
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-90) @Max(90) latitude?: number
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-180) @Max(180) longitude?: number
-  @IsOptional() @IsIn(['Balanced', 'Availability', 'Speed', 'Savings']) rankingPriority?:
-    'Balanced' | 'Availability' | 'Speed' | 'Savings' = 'Balanced'
+  @IsOptional() @IsIn(['Balanced', 'Availability', 'Speed', 'Savings']) rankingPriority?: RankingPriority =
+    'Balanced'
+  @IsOptional() @IsObject() rankingPreferences?: RankingPreferencesInput
   @IsOptional() @IsBoolean() routeFromCurrentLocation?: boolean
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-90) @Max(90) routeOriginLatitude?: number
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-180) @Max(180) routeOriginLongitude?: number

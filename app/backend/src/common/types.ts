@@ -55,4 +55,18 @@ export interface RankedStation extends Station {
   estimatedHourlyCost: number | null
   hourlyCostIncludesParking: boolean
   reasons: string[]
+  dataQualityNotices: string[]
+  scoreComponents: {
+    distance: number | null
+    availability: number | null
+    speed: number | null
+    savings: number | null
+  }
+  weightedContributions: {
+    distance: number
+    availability: number
+    speed: number
+    savings: number
+  }
+  scoreExact: number
 }

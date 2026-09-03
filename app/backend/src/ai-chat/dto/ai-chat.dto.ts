@@ -4,6 +4,7 @@ import {
   IsArray,
   IsIn,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -21,6 +22,8 @@ export class AiChatContextDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-90) @Max(90) latitude?: number
   @IsOptional() @Type(() => Number) @IsNumber() @Min(-180) @Max(180) longitude?: number
   @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) selectedStationIds?: string[]
+  @IsOptional() @IsObject() previousFilters?: Record<string, unknown>
+  @IsOptional() @IsObject() previousRankingPreferences?: Record<string, unknown>
 }
 
 export class AiChatDto {

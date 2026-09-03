@@ -3,16 +3,24 @@ import { ConnectorPreference, RankedStation, Station } from '../common/types'
 import { OneMapService, ParkingService, RouteResult } from '../integrations'
 import { StationsService } from '../stations/stations.service'
 import { RecommendationDto } from './dto/recommendation.dto'
+import { DISTANCE_SCALE_KM, resolveRankingWeights } from './ranking-weights'
+import type { RankingFactor, RankingWeightResolution, RankingWeights } from './ranking-weights'
 
 const ROUTE_CONCURRENCY = 4
 
-type RankingPriority = 'Balanced' | 'Availability' | 'Speed' | 'Savings'
+interface ComponentScores {
+  distance: number | null
+  availability: number | null
+  speed: number | null
+  savings: number | null
+}
 
-const rankingWeights: Record<RankingPriority, { availability: number; speed: number; savings: number }> = {
-  Balanced: { availability: 40, speed: 30, savings: 30 },
-  Availability: { availability: 60, speed: 25, savings: 15 },
-  Speed: { availability: 25, speed: 60, savings: 15 },
-  Savings: { availability: 25, speed: 15, savings: 60 },
+interface ConnectorMetrics {
+  pricePerKwh: number | null
+  powerKw: number | null
+  estimatedHourlyCost: number | null
+  hourlyCostIncludesParking: boolean
+  components: ComponentScores
 }
 
 @Injectable()
@@ -24,7 +32,12 @@ export class RecommendationsService {
   ) {}
 
   async recommend(dto: RecommendationDto) {
-    const connectorPreference = dto.connector ?? 'Any'
+    const rankingResolution = resolveRankingWeights(dto.rankingPreferences, dto.rankingPriority)
+    if (rankingResolution.requiresClarification) {
+      throw new BadRequestException(rankingResolution.clarificationQuestion)
+    }
+
+    const connectorPreference = isConnectorPreference(dto.connector) ? dto.connector : 'Any'
     const search = await this.stationsService.search({
       query: dto.query,
       latitude: dto.latitude,
@@ -44,7 +57,7 @@ export class RecommendationsService {
           ? null
           : dto.latitude !== undefined && dto.longitude !== undefined
             ? { latitude: dto.latitude, longitude: dto.longitude }
-            : null
+            : { latitude: search.location.latitude, longitude: search.location.longitude }
     const routes = new Map<string, RouteResult | null>()
     if (!routeOrigin) {
       search.stations.forEach((station) => routes.set(station.id, null))
@@ -63,15 +76,32 @@ export class RecommendationsService {
         }),
       )
     }
+
     const ranked = search.stations
       .map((station) =>
-        this.rankStation(station, { ...dto, connector: connectorPreference }, routes.get(station.id) ?? null),
+        this.rankStation(
+          station,
+          { ...dto, connector: connectorPreference },
+          routes.get(station.id) ?? null,
+          rankingResolution,
+        ),
       )
-      .sort((a, b) => b.score - a.score || a.distanceKm - b.distanceKm)
+      .sort((a, b) => {
+        // Preset ordering continues to use the legacy displayed score. Custom
+        // ranking uses the unrounded score so close candidates are not tied by
+        // presentation rounding.
+        const scoreDifference =
+          rankingResolution.source === 'preset' ? b.score - a.score : b.scoreExact - a.scoreExact
+        return scoreDifference || a.distanceKm - b.distanceKm || a.id.localeCompare(b.id)
+      })
 
     return {
       recommended: ranked[0] ?? null,
       ranked,
+      ranking: {
+        weights: rankingResolution.weights,
+        source: rankingResolution.source,
+      },
       search: {
         totalMatches: search.totalMatches,
         location: search.location,
@@ -84,11 +114,14 @@ export class RecommendationsService {
     station: Station & { distanceKm?: number },
     dto: RecommendationDto,
     route: RouteResult | null = null,
+    resolvedRanking?: RankingWeightResolution,
   ): RankedStation {
-    const connectorPreference = dto.connector ?? 'Any'
-    const connector = this.selectConnector(station, connectorPreference, dto.rankingPriority ?? 'Balanced')
-    if (!connector) throw new BadRequestException('Incompatible station was sent for ranking')
+    const ranking = resolvedRanking ?? resolveRankingWeights(dto.rankingPreferences, dto.rankingPriority)
+    if (ranking.requiresClarification) {
+      throw new BadRequestException(ranking.clarificationQuestion)
+    }
 
+    const connectorPreference = isConnectorPreference(dto.connector) ? dto.connector : 'Any'
     const distanceKm =
       route?.distanceKm ??
       station.distanceKm ??
@@ -96,18 +129,111 @@ export class RecommendationsService {
         { latitude: dto.latitude ?? 1.2903, longitude: dto.longitude ?? 103.8519 },
         station,
       )
-    const availability =
-      connector.status === 'unknown' || connector.available === null
-        ? null
-        : (connector.available / Math.max(connector.total, 1)) * 100
-    const powerKw = connector.powerKw > 0 ? connector.powerKw : null
-    const pricePerKwh = station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null
-    const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((distanceKm / 25) * 60))
-    const chargingHourlyCost =
-      pricePerKwh === null || powerKw === null ? null : Number((pricePerKwh * powerKw).toFixed(2))
+    const safeDistanceKm = Number.isFinite(distanceKm) ? Math.max(0, distanceKm) : 0
+    const distanceScore = distanceComponent(safeDistanceKm)
+    const travelMinutes = route?.travelMinutes ?? Math.max(2, Math.round((safeDistanceKm / 25) * 60))
     const arrivalTime = addMinutes(dto.evaluationAt ?? new Date().toISOString(), travelMinutes)
     const parkingEstimate = this.parking?.estimate(station, arrivalTime, 60)
     const parkingHourlyCost = parkingEstimate?.estimatedParkingCost ?? null
+    const connector = this.selectConnector(
+      station,
+      connectorPreference,
+      dto,
+      ranking.weights,
+      distanceScore,
+      parkingHourlyCost,
+    )
+    if (!connector) throw new BadRequestException('Incompatible station was sent for ranking')
+
+    const metrics = this.connectorMetrics(connector, station, distanceScore, parkingHourlyCost)
+    const weightedContributions = weightedContributionsFor(metrics.components, ranking.weights)
+    const scoreExact = sumWeightedContributions(weightedContributions)
+
+    const dataQualityNotices: string[] = []
+    if (metrics.estimatedHourlyCost === null)
+      dataQualityNotices.push('Estimated charging cost per hour is unknown')
+    if (metrics.components.availability === null) dataQualityNotices.push('Availability is unknown')
+    if (metrics.components.speed === null) dataQualityNotices.push('Charging speed is unknown')
+
+    const reasons = rankingReasons(metrics.components, ranking.weights)
+    if (connectorPreference === 'Any')
+      reasons.unshift(`${connector.type} selected as the best eligible connector`)
+
+    return {
+      ...structuredClone(station),
+      selectedConnector: connector.type,
+      pricePerKwh: metrics.pricePerKwh,
+      score: Math.round(scoreExact),
+      scoreExact,
+      distanceKm: safeDistanceKm,
+      travelMinutes,
+      travelSource: route ? 'OneMap' : 'Straight-line estimate',
+      estimatedHourlyCost: metrics.estimatedHourlyCost,
+      hourlyCostIncludesParking: metrics.hourlyCostIncludesParking,
+      scoreComponents: metrics.components,
+      weightedContributions,
+      reasons: reasons.slice(0, 3),
+      dataQualityNotices,
+    }
+  }
+
+  private selectConnector(
+    station: Station,
+    preference: ConnectorPreference,
+    dto: RecommendationDto,
+    weights: RankingWeights,
+    distanceScore: number,
+    parkingHourlyCost: number | null,
+  ) {
+    const candidates = station.connectors.filter(
+      (connector) =>
+        (preference === 'Any' || connector.type === preference) &&
+        this.connectorSatisfiesMandatoryFilters(connector, dto),
+    )
+    if (!candidates.length) return undefined
+
+    return [...candidates].sort((a, b) => {
+      const scoreA = sumWeightedContributions(
+        weightedContributionsFor(
+          this.connectorMetrics(a, station, distanceScore, parkingHourlyCost).components,
+          weights,
+        ),
+      )
+      const scoreB = sumWeightedContributions(
+        weightedContributionsFor(
+          this.connectorMetrics(b, station, distanceScore, parkingHourlyCost).components,
+          weights,
+        ),
+      )
+      return scoreB - scoreA || a.type.localeCompare(b.type)
+    })[0]
+  }
+
+  private connectorSatisfiesMandatoryFilters(
+    connector: Station['connectors'][number],
+    dto: RecommendationDto,
+  ) {
+    return (
+      (dto.minPowerKw === undefined ||
+        (Number.isFinite(dto.minPowerKw) && connector.powerKw >= dto.minPowerKw)) &&
+      (!dto.availableOnly || (connector.status === 'available' && (connector.available ?? 0) > 0))
+    )
+  }
+
+  private connectorMetrics(
+    connector: Station['connectors'][number],
+    station: Station,
+    distanceScore: number,
+    parkingHourlyCost: number | null,
+  ): ConnectorMetrics {
+    const availability =
+      connector.status === 'unknown' || connector.available === null
+        ? null
+        : clampScore((connector.available / Math.max(connector.total, 1)) * 100)
+    const powerKw = connector.powerKw > 0 ? connector.powerKw : null
+    const pricePerKwh = station.pricePerKwh !== null && station.pricePerKwh > 0 ? station.pricePerKwh : null
+    const chargingHourlyCost =
+      pricePerKwh === null || powerKw === null ? null : Number((pricePerKwh * powerKw).toFixed(2))
     const hourlyCostIncludesParking = chargingHourlyCost !== null && parkingHourlyCost !== null
     const estimatedHourlyCost =
       chargingHourlyCost === null
@@ -115,68 +241,65 @@ export class RecommendationsService {
         : hourlyCostIncludesParking
           ? Number((chargingHourlyCost + parkingHourlyCost).toFixed(2))
           : chargingHourlyCost
-    // Savings is based on the estimated cost per hour, including one hour of
-    // parking when an official tariff can be calculated.
-    const savings =
-      estimatedHourlyCost === null ? null : Math.max(0, Math.min(100, 100 - estimatedHourlyCost))
-    const speed = powerKw === null ? null : Math.min(100, (powerKw / 200) * 100)
-    const weights = rankingWeights[dto.rankingPriority ?? 'Balanced']
-    const score =
-      ((availability ?? 0) * weights.availability +
-        (speed ?? 0) * weights.speed +
-        (savings ?? 0) * weights.savings) /
-      100
-
-    const reasons: string[] = []
-    if (estimatedHourlyCost === null) reasons.push('Charging cost per hour is unknown and ranked lower')
-    if (availability === null) reasons.push('Availability is unknown and ranked lower')
-    if (speed === null) reasons.push('Charging speed is unknown and ranked lower')
-    if ((connector.available ?? 0) > 0)
-      reasons.push(
-        `${connector.available} compatible charger${connector.available === 1 ? '' : 's'} available now`,
-      )
-    if ((powerKw ?? 0) >= 100) reasons.push(`Fast ${powerKw} kW charging`)
-    if (distanceKm < 3) reasons.push(`Only ${travelMinutes} minutes away`)
-    if (estimatedHourlyCost !== null && estimatedHourlyCost <= 55)
-      reasons.push(`Competitive charging rate of $${estimatedHourlyCost.toFixed(2)}/hour`)
-    if (connectorPreference === 'Any') reasons.unshift(`${connector.type} selected as the best connector`)
+    // Savings remains the existing estimated hourly-cost-based component. It
+    // is not a total charging-session cost.
+    const savings = estimatedHourlyCost === null ? null : clampScore(100 - estimatedHourlyCost)
+    const speed = powerKw === null ? null : clampScore((powerKw / 200) * 100)
 
     return {
-      ...structuredClone(station),
-      selectedConnector: connector.type,
       pricePerKwh,
-      score: Math.round(score),
-      distanceKm,
-      travelMinutes,
-      travelSource: route ? 'OneMap' : 'Straight-line estimate',
+      powerKw,
       estimatedHourlyCost,
       hourlyCostIncludesParking,
-      reasons: reasons.slice(0, 3),
+      components: { distance: distanceScore, availability, speed, savings },
     }
   }
+}
 
-  private selectConnector(
-    station: Station,
-    preference: ConnectorPreference,
-    rankingPriority: RankingPriority,
-  ) {
-    if (preference !== 'Any') return station.connectors.find((connector) => connector.type === preference)
-
-    const eligible = station.connectors.filter((connector) => connector.status !== 'unknown')
-    const candidates = eligible.length ? eligible : station.connectors
-    const weights = rankingWeights[rankingPriority]
-    return [...candidates].sort((a, b) => {
-      const score = (connector: (typeof candidates)[number]) => {
-        const availability =
-          connector.status === 'unknown' || connector.available === null
-            ? 0
-            : (connector.available / Math.max(connector.total, 1)) * 100
-        const speed = connector.powerKw > 0 ? Math.min(100, (connector.powerKw / 200) * 100) : 0
-        return availability * weights.availability + speed * weights.speed
-      }
-      return score(b) - score(a)
-    })[0]
+function rankingReasons(components: ComponentScores, weights: RankingWeights) {
+  const reasons: string[] = []
+  const unknownReasons: Record<RankingFactor, string> = {
+    distance: 'Distance is unknown and ranked lower',
+    availability: 'Availability is unknown and ranked lower',
+    speed: 'Charging speed is unknown and ranked lower',
+    savings: 'Charging cost per hour is unknown and ranked lower',
   }
+  for (const factor of ['distance', 'availability', 'speed', 'savings'] as const) {
+    if (weights[factor] <= 0) continue
+    const component = components[factor]
+    if (component === null) {
+      reasons.push(unknownReasons[factor])
+    }
+  }
+  return reasons
+}
+
+function weightedContributionsFor(components: ComponentScores, weights: RankingWeights) {
+  return Object.fromEntries(
+    (['distance', 'availability', 'speed', 'savings'] as const).map((factor) => [
+      factor,
+      components[factor] === null ? 0 : (components[factor] * weights[factor]) / 100,
+    ]),
+  ) as Record<RankingFactor, number>
+}
+
+function sumWeightedContributions(contributions: Record<RankingFactor, number>) {
+  return (['distance', 'availability', 'speed', 'savings'] as const).reduce(
+    (sum, factor) => sum + contributions[factor],
+    0,
+  )
+}
+
+function distanceComponent(distanceKm: number) {
+  return clampScore(100 / (1 + distanceKm / DISTANCE_SCALE_KM))
+}
+
+function clampScore(value: number) {
+  return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
+}
+
+function isConnectorPreference(value: unknown): value is ConnectorPreference {
+  return value === 'Any' || value === 'CCS2' || value === 'Type 2' || value === 'CHAdeMO'
 }
 
 function addMinutes(value: Date | string, minutes: number) {

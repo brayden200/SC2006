@@ -2,6 +2,8 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { RecommendationDto } from '../recommendations/dto/recommendation.dto'
 import { RecommendationsService } from '../recommendations/recommendations.service'
+import { RANKING_FACTORS, resolveRankingWeights } from '../recommendations/ranking-weights'
+import type { RankingImportance, RankingPreferencesInput } from '../recommendations/ranking-weights'
 import { StationsService } from '../stations/stations.service'
 import { AiChatDto } from './dto/ai-chat.dto'
 import { AiStructuredResponse } from './ai-chat.types'
@@ -24,20 +26,26 @@ export class AiChatService {
     const stationFacts = this.getSelectedStationFacts(dto.context?.selectedStationIds ?? [])
     const structured = await this.requestStructuredResponse(dto, stationFacts)
     const filters = this.sanitizeFilters(structured.filters)
+    const rankingPreferences = this.sanitizeRankingPreferences(structured.rankingPreferences)
+    const rankingResolution = resolveRankingWeights(structured.rankingPreferences, filters.rankingPriority)
     const hasCoordinates = dto.context?.latitude !== undefined && dto.context.longitude !== undefined
     const missingSearchLocation = structured.intent === 'search' && !filters.query && !hasCoordinates
     const needsClarification =
-      structured.needsClarification || structured.intent === 'clarification' || missingSearchLocation
+      structured.needsClarification ||
+      structured.intent === 'clarification' ||
+      missingSearchLocation ||
+      (structured.intent === 'search' && rankingResolution.requiresClarification)
 
     if (structured.intent !== 'search' || needsClarification) {
       const clarifyingQuestion = missingSearchLocation
         ? 'Where in Singapore would you like to charge?'
-        : structured.clarifyingQuestion
+        : rankingResolution.clarificationQuestion || structured.clarifyingQuestion
       return {
         reply: clarifyingQuestion || structured.reply,
         intent: needsClarification ? 'clarification' : structured.intent,
         recommendation: null,
         filters,
+        rankingPreferences,
         needsClarification,
         ...(clarifyingQuestion ? { clarifyingQuestion } : {}),
       }
@@ -45,8 +53,15 @@ export class AiChatService {
 
     const recommendation = await this.recommendations.recommend({
       ...filters,
-      latitude: dto.context?.latitude,
-      longitude: dto.context?.longitude,
+      // Only pass a custom payload through when the shared resolver accepted
+      // it. A malformed AI payload must not become custom merely because
+      // sanitization dropped its invalid fields.
+      rankingPreferences: rankingResolution.source === 'preset' ? undefined : rankingPreferences,
+      // An explicit location extracted from the latest prompt must override
+      // the browser's fallback coordinates. Otherwise resolveLocation treats
+      // the two inputs as a GPS search and silently ignores the new query.
+      latitude: filters.query ? undefined : dto.context?.latitude,
+      longitude: filters.query ? undefined : dto.context?.longitude,
     })
     const reply = recommendation.ranked.length
       ? structured.reply
@@ -57,6 +72,7 @@ export class AiChatService {
       intent: structured.intent,
       recommendation,
       filters,
+      rankingPreferences,
       needsClarification: false,
     }
   }
@@ -131,6 +147,7 @@ export class AiChatService {
       typeof parsed.reply !== 'string' ||
       typeof parsed.needsClarification !== 'boolean' ||
       !isRecord(parsed.filters) ||
+      !isRecord(parsed.rankingPreferences) ||
       (parsed.clarifyingQuestion !== undefined &&
         parsed.clarifyingQuestion !== null &&
         typeof parsed.clarifyingQuestion !== 'string')
@@ -144,6 +161,7 @@ export class AiChatService {
       clarifyingQuestion:
         typeof parsed.clarifyingQuestion === 'string' ? parsed.clarifyingQuestion.slice(0, 500) : undefined,
       filters: parsed.filters as RecommendationDto,
+      rankingPreferences: parsed.rankingPreferences as RankingPreferencesInput,
     }
   }
 
@@ -180,6 +198,38 @@ export class AiChatService {
     }
   }
 
+  private sanitizeRankingPreferences(input: unknown): RankingPreferencesInput | undefined {
+    if (!isRecord(input)) return undefined
+    const preferences: RankingPreferencesInput = {}
+    if (isRecord(input.importance)) {
+      const importance: Partial<Record<(typeof RANKING_FACTORS)[number], RankingImportance>> = {}
+      for (const factor of RANKING_FACTORS) {
+        const value = input.importance[factor]
+        if (typeof value === 'number' && [0, 1, 2, 4, 8].includes(value)) {
+          importance[factor] = value as RankingImportance
+        }
+      }
+      preferences.importance = importance
+    }
+    if (isRecord(input.percentages)) {
+      const percentages: Partial<Record<(typeof RANKING_FACTORS)[number], number | null>> = {}
+      for (const factor of RANKING_FACTORS) {
+        const value = input.percentages[factor]
+        if (value === null || (typeof value === 'number' && Number.isFinite(value))) {
+          percentages[factor] = value
+        }
+      }
+      preferences.percentages = percentages
+    }
+    if (
+      Array.isArray(input.excluded) &&
+      input.excluded.every((factor) => RANKING_FACTORS.includes(factor as (typeof RANKING_FACTORS)[number]))
+    ) {
+      preferences.excluded = [...new Set(input.excluded)] as (typeof RANKING_FACTORS)[number][]
+    }
+    return Object.keys(preferences).length ? preferences : undefined
+  }
+
   private getSelectedStationFacts(ids: string[]) {
     return ids.flatMap((id) => {
       try {
@@ -213,10 +263,20 @@ export class AiChatService {
       dto.context?.latitude !== undefined && dto.context.longitude !== undefined
         ? { latitude: dto.context.latitude, longitude: dto.context.longitude }
         : null
+    const previousFilters = dto.context?.previousFilters
+      ? this.sanitizeFilters(dto.context.previousFilters)
+      : null
+    const previousRankingPreferences = dto.context?.previousRankingPreferences
+      ? this.sanitizeRankingPreferences(dto.context.previousRankingPreferences)
+      : null
     return `You are Ask ChargeWise for Singapore EV charging. Return only JSON matching the supplied schema.
-Extract intent and supported filters. Use these defaults when absent: connector Any, rankingPriority Balanced, energyKwh 35, radiusKm 8.
-Request context coordinates: ${JSON.stringify(coordinates)}. Ask one concise clarification question only when a search has no usable location in the user message or conversation and these coordinates are null, or when the request is genuinely ambiguous. Coordinates count as a usable location; leave query null when using them.
-Never invent station names, availability, charging prices, parking rates, routes, costs, or ranking scores. Never calculate them yourself. Missing values are unknown, never zero or free. Charging price, parking cost, and total visit cost are distinct. For search, keep reply concise and describe the criteria you understood without claiming results or live availability; the deterministic backend will calculate results after your response. Do not create, stop, or imply monitoring actions.
+Extract intent, mandatory filters, and ranking preferences as separate fields. Use these defaults when absent: connector Any, rankingPriority Balanced, energyKwh 35, radiusKm 8.
+Request context coordinates: ${JSON.stringify(coordinates)}. They are a fallback location only. If the latest user message names or clearly describes a different location, it overrides these coordinates and must be placed in filters.query. Ask one concise clarification question only when a search has no usable location in the user message or conversation and these coordinates are null, or when the request is genuinely ambiguous. Leave query null only when using the fallback coordinates.
+Filters are eligibility constraints, never ranking preferences: connector type, provider, radius, minimum power, maximum price, and available-only requirements only remove candidates. A minimum power request is not a speed preference unless the user also says fast or otherwise prefers speed. Connector and provider mentions must never appear in ranking importance or exclusions.
+Ranking factors are distance, availability, speed, and savings. Set importance independently for each factor using only 0 (unmentioned/excluded), 1 (mild), 2 (normal), 4 (strong), or 8 (dominant). Equal emphasis is equal importance; “mostly”, “above all”, and “matters most” increase importance; “would be nice” is mild; “I don’t care about price” excludes savings. A single preferred factor gets 100% after backend conversion. For complete explicit percentages, put all four numeric values in percentages; for incomplete or contradictory explicit allocations, preserve the values mentioned and use null for the rest, set needsClarification true, and ask for a concise allocation totalling 100%. If there is no custom preference, use zero importance for all factors and an empty exclusions list. Never invent percentages.
+For a follow-up, use the previous applied filters and ranking preferences below when the user refers to the prior search, such as “actually, speed matters more”. Latest explicit instructions override earlier ones. A clearly new search replaces unrelated old constraints.
+Previous applied filters: ${JSON.stringify(previousFilters)}. Previous applied ranking preferences: ${JSON.stringify(previousRankingPreferences)}.
+Never invent station names, availability, charging prices, parking rates, routes, costs, or ranking scores. Never calculate them yourself. Missing values are unknown, never zero or free. Charging price, parking cost, and total visit cost are distinct. For search, keep reply concise and mention only constraints explicitly present in the latest user message or explicitly carried by a follow-up reference. Do not mention default radius, energy, or other filters merely because they were applied by the backend. Do not mention scoring formulas, internal fields, or percentages in the reply. Do not claim results or live availability; the deterministic backend will calculate results after your response. Recommendations are the best among the returned candidates, not a claim about every station in Singapore. Do not create, stop, or imply monitoring actions.
 For explanation intent, use only these selected station facts: ${JSON.stringify(stationFacts)}. If facts are empty or a field is null, say it is unknown. Do not use claims from conversation as station facts.`
   }
 }
@@ -232,7 +292,7 @@ const nullableBoolean = { anyOf: [{ type: 'boolean' }, { type: 'null' }] }
 const structuredOutputSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['intent', 'reply', 'needsClarification', 'clarifyingQuestion', 'filters'],
+  required: ['intent', 'reply', 'needsClarification', 'clarifyingQuestion', 'filters', 'rankingPreferences'],
   properties: {
     intent: { type: 'string', enum: INTENTS },
     reply: { type: 'string' },
@@ -264,6 +324,28 @@ const structuredOutputSchema = {
         availableOnly: nullableBoolean,
         operator: nullableString,
         evaluationAt: nullableString,
+      },
+    },
+    rankingPreferences: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['importance', 'percentages', 'excluded'],
+      properties: {
+        importance: {
+          type: 'object',
+          additionalProperties: false,
+          required: RANKING_FACTORS,
+          properties: Object.fromEntries(
+            RANKING_FACTORS.map((factor) => [factor, { type: 'number', enum: [0, 1, 2, 4, 8] }]),
+          ),
+        },
+        percentages: {
+          type: 'object',
+          additionalProperties: false,
+          required: RANKING_FACTORS,
+          properties: Object.fromEntries(RANKING_FACTORS.map((factor) => [factor, nullableNumber])),
+        },
+        excluded: { type: 'array', items: { type: 'string', enum: RANKING_FACTORS }, maxItems: 4 },
       },
     },
   },
