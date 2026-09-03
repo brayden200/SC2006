@@ -23,6 +23,7 @@ export function Modal({
     <MantineModal
       opened
       onClose={onClose}
+      zIndex={1400}
       fullScreen={mobileFullScreen && isMobile}
       size={570}
       title={

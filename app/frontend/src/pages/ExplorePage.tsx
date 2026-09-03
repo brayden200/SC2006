@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
-import { ActionIcon, Alert, Button, Loader, Paper, Select, Stack, Textarea, TextInput } from '@mantine/core'
-import { AlertTriangle, Bot, CircleAlert, LocateFixed, MessageCircle, Search, Send, X } from 'lucide-react'
+import { ActionIcon, Alert, Button, Loader, Paper, Select, Stack, TextInput } from '@mantine/core'
+import { AlertTriangle, CircleAlert, LocateFixed, Search } from 'lucide-react'
 import { api } from '../api'
+import { ChatWidget } from '../components/ChatWidget'
 import { MapPanel } from '../components/MapPanel'
 import { StationCard } from '../components/StationCard'
 import { StationDetailsModal } from '../components/StationDetailsModal'
@@ -351,86 +352,18 @@ export function ExplorePage({ notify }: { notify: (message: string) => void }) {
         </div>
       </Paper>
 
-      <div className="ask-chargewise-row">
-        <Button
-          variant={chatOpen ? 'light' : 'default'}
-          leftSection={<MessageCircle size={17} />}
-          onClick={() => setChatOpen((open) => !open)}
-        >
-          Ask ChargeWise
-        </Button>
-        <span>Describe a charger, location, budget, or availability preference naturally.</span>
-      </div>
-
-      {chatOpen && (
-        <Paper className="chat-panel" radius="lg" shadow="sm" withBorder>
-          <div className="chat-header">
-            <div>
-              <span className="chat-bot-icon">
-                <Bot size={18} />
-              </span>
-              <div>
-                <b>Ask ChargeWise</b>
-                <small>AI understands your request; live data and rankings come from ChargeWise.</small>
-              </div>
-            </div>
-            <ActionIcon variant="subtle" onClick={() => setChatOpen(false)} aria-label="Close chatbot">
-              <X size={17} />
-            </ActionIcon>
-          </div>
-          <div className="chat-messages" aria-live="polite">
-            {chatMessages.length === 0 && (
-              <div className="chat-welcome">
-                Try “Find a fast CCS2 charger near Orchard under S$0.60/kWh.”
-              </div>
-            )}
-            {chatMessages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
-                {message.content}
-              </div>
-            ))}
-            {chatLoading && (
-              <div className="chat-thinking">
-                <Loader size="xs" /> {chatStatus}
-              </div>
-            )}
-          </div>
-          {chatError && (
-            <Alert className="chat-error" color="red" icon={<CircleAlert size={16} />}>
-              {chatError} The normal search above is still available.
-            </Alert>
-          )}
-          <div className="chat-compose">
-            <Textarea
-              value={chatInput}
-              onChange={(event) => setChatInput(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  void sendChatMessage()
-                }
-              }}
-              placeholder="What kind of charger do you need?"
-              autosize
-              minRows={1}
-              maxRows={3}
-              aria-label="Message Ask ChargeWise"
-            />
-            <ActionIcon
-              size="lg"
-              color="green"
-              onClick={() => void sendChatMessage()}
-              disabled={!chatInput.trim() || chatLoading}
-              aria-label="Send message"
-            >
-              <Send size={17} />
-            </ActionIcon>
-          </div>
-          <small className="chat-disclaimer">
-            Do not share sensitive information. Use the explicit controls for monitoring actions.
-          </small>
-        </Paper>
-      )}
+      <ChatWidget
+        open={chatOpen}
+        onOpen={() => setChatOpen(true)}
+        onClose={() => setChatOpen(false)}
+        messages={chatMessages}
+        draft={chatInput}
+        onDraftChange={setChatInput}
+        loading={chatLoading}
+        status={chatStatus}
+        error={chatError}
+        onSend={sendChatMessage}
+      />
 
       {error && (
         <Alert className="error-banner" color="red" icon={<CircleAlert size={18} />}>
